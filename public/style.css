@@ -1,0 +1,483 @@
+* {
+  font-family: "Arial";
+}
+
+.flexbox {
+  display: flex;
+  flex-direction: row;
+}
+
+.welcome .networkImg {
+  width: 32vw;
+  margin-left: 7vw;
+  margin-top: 18vh;
+}
+
+.welcome {
+  background: #0d02be;
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: 50vw;
+}
+
+.registration {
+  position: fixed;
+  left: 62vw;
+  top: 27vh;
+}
+
+.registration p {
+  font-size: 11px;
+  padding-bottom: 20px;
+}
+
+body > main > div > div > div > div > p > a {
+  background: #e5f0fbb8;
+  text-decoration: none;
+}
+
+#about {
+  position: fixed;
+  right: 2vw;
+  top: 2vh;
+  text-decoration: none;
+  color: black;
+}
+#linkImg {
+  position: fixed;
+  right: 7vw;
+  top: 3.45vh;
+  width: 29px;
+}
+
+#registerImg {
+  position: fixed;
+  width: 29px;
+  right: 7.5vw;
+  top: 3.45vh;
+}
+
+#register {
+  position: fixed;
+  text-decoration: none;
+  color: black;
+  right: 2vw;
+  top: 2vh;
+}
+
+#loginImg {
+  position: fixed;
+  width: 29px;
+  right: 16.5vw;
+  top: 3.45vh;
+}
+#login {
+  position: fixed;
+  text-decoration: none;
+  color: black;
+  right: 12vw;
+  top: 2vh;
+}
+
+#logout {
+  position: fixed;
+  text-decoration: none;
+  color: black;
+  right: 15vw;
+  top: 2vh;
+}
+#logout a {
+  text-decoration: none;
+  color: black;
+}
+
+#logoutImg {
+  position: fixed;
+  width: 29px;
+  right: 22vw;
+  top: 3.45vh;
+}
+.blackBox {
+  border: 1px solid black;
+  padding: 20px;
+}
+.blackBox p {
+  color: black;
+  font-weight: bold;
+}
+
+.aboutContent {
+  position: fixed;
+  left: 62vw;
+  top: 27vh;
+  width: 30vw;
+}
+
+.aboutContent p {
+  font-size: 13px;
+}
+.technologieContainer {
+  display: flex;
+  flex-direction: row;
+  width: 30vw;
+  justify-content: space-between;
+  padding-top: 20px;
+}
+
+.technologieContainer > a {
+  border: 1px solid black;
+  text-decoration: none;
+  color: black;
+  margin-bottom: 20px;
+  padding: 0 20px;
+  font-size: 13px;
+}
+
+.aboutTitle {
+  /* background: #a6caf785; */
+  border: 1px solid black;
+
+  padding-left: 5px;
+}
+
+.blackBox input {
+  outline: none;
+  border: none;
+  margin-bottom: 20px;
+  border-bottom: 1px solid black;
+
+  width: 23vw;
+}
+
+.blackBox input {
+  font-size: 12px;
+}
+.blackBox input::placeholder {
+  color: black;
+  font-size: 10px;
+  font-weight: 100;
+  font-family: "Arial";
+}
+
+.button {
+  background: white;
+  color: black;
+  border: 1px solid black;
+  padding: 4px 15px;
+  margin: 6px 0;
+}
+
+.button:hover {
+  background: #0d02be;
+  color: white;
+}
+
+.smallSmiley {
+  padding: 10px 0 0;
+  width: 5vw;
+}
+.header {
+  padding: 20px;
+  padding-bottom: 31px;
+}
+
+.incorrectFirst,
+.incorrectLast,
+.incorrectEmail,
+.incorrectPassword {
+  border: 1px solid black;
+  outline-style: solid;
+  outline-color: rgba(223, 80, 80, 0.37);
+}
+
+.flex-container {
+  display: flex;
+  flex-direction: row;
+}
+.profile-container {
+  margin: 0 36px 0 22px;
+  /* background: grey; */
+  border: 1px solid black;
+  padding: 30px 20px;
+  align-items: center;
+}
+/* kleines Profil Bild in der Ecke */
+.profilePic {
+  width: 2vw;
+  position: absolute;
+  top: 57px;
+  left: 95%;
+}
+.menu {
+  position: absolute;
+  top: 27px;
+  left: 75%;
+  border: 1px solid black;
+  padding: 16px 119px;
+}
+.wall-container {
+  width: 100%;
+}
+.menu:hover {
+  background: #0d02be;
+  color: white;
+  font-size: 12px;
+}
+
+/* Großes Profil Bild */
+.profile-container .profilePic {
+  top: 0;
+  position: relative;
+  width: 30vw;
+  left: 0px;
+  border: 1px solid black;
+}
+.uploadImageModal {
+  background-color: #f1f1f1;
+  width: 61vw;
+  height: 35vw;
+  position: absolute;
+  top: 200px;
+  left: 21%;
+}
+
+.profileUser {
+  position: block;
+  width: 11vw;
+}
+
+#userdetail {
+  width: 22vw;
+  float: left;
+}
+
+/* Profil Bild von anderen Usern */
+.profileUserImg {
+  width: 30vw;
+}
+
+.profile {
+  /* border-top: 1px solid black; */
+  padding-top: 20px;
+  margin-top: 20px;
+}
+
+.otherProfile {
+  width: 30vw;
+}
+
+.friendsImg {
+  width: 20vw;
+}
+
+.friends {
+  display: flex;
+  flex-direction: row;
+  margin-top: 10px;
+}
+.profile-container .name {
+  font-size: 2em;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+.friends .friend {
+  width: 30vw;
+  border: 1px solid black;
+  text-align: center;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  margin-left: 10px;
+}
+.bioInput {
+  width: 379px;
+  height: 100px;
+}
+.button.abstand {
+  margin-right: 10px;
+}
+.post-container .friend {
+  padding: 10px;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* .post-container .friend .button {
+  float: right;
+} */
+.chat-messages-container {
+  height: 300px;
+  width: 80%;
+  border: 1px solid black;
+  overflow-y: scroll;
+  margin-left: 20px;
+  margin-top: 30px;
+}
+body > main > div > div:nth-child(3) > div > div:nth-child(1) {
+}
+.flex-container #textarea {
+  width: 577px;
+  height: 50px;
+  font-size: 30px;
+  margin-bottom: 30px;
+}
+#feed {
+  display: absolute;
+}
+.singlePost {
+  border: 1px solid grey;
+  display: flex;
+  flex-direction: row;
+}
+
+.singlePost .chatImg {
+  width: 30px;
+  height: 30px;
+}
+.singlePost .date {
+  font-size: 8px;
+}
+.post-container {
+  border: 1px solid black;
+  width: 754px;
+  padding: 20px;
+}
+
+.post-container .friend {
+  border: 1px solid black;
+  margin-bottom: 10px;
+  /* display: flex; */
+}
+
+.post-created_at {
+  font-size: 8px;
+}
+
+.search input {
+  top: 44px;
+  position: absolute;
+  right: 442px;
+  width: 26vw;
+  height: 47px;
+  border: 1px solid black;
+  font-size: 30px;
+}
+
+.search button {
+  top: 40px;
+  position: absolute;
+  right: 318px;
+  background: white;
+  color: black;
+  border: 1px solid black;
+  height: 51px;
+  margin: 4px 10px;
+  padding: 0 35px;
+  font-size: 18px;
+}
+
+.search button:hover {
+  background: #0d02be;
+  color: white;
+}
+
+.search-modal {
+  background-color: #f1f1f1;
+  width: 294px;
+
+  position: absolute;
+  top: 95px;
+  left: 499px;
+  z-index: 2;
+  padding: 20px;
+  border: 1px solid black;
+}
+.search-modal .found {
+  padding: 10px;
+
+  border: 2px solid black;
+}
+
+.search-modal .foundImg {
+  width: 40px;
+}
+
+#feed .postInput > button {
+  font-size: 15px;
+  top: 132px;
+  position: absolute;
+  right: 20px;
+  color: black;
+  padding: 19px 57px;
+  margin: 4px 10px;
+  background-color: white;
+}
+
+#feed .postInput > button:hover {
+  background: #0d02be;
+  color: white;
+}
+.friendsImg {
+  width: auto;
+  height: 40px;
+}
+
+/* #feed > div.wall > div > div > button {
+  font-size: 15px;
+  top: 132px;
+  position: absolute;
+  right: 20px;
+  color: black;
+  padding: 19px 57px;
+  margin: 4px 10px;
+  background-color: white;
+} */
+
+.logout a {
+  text-decoration: none;
+  color: black;
+}
+
+.logout a:hover {
+  text-decoration: none;
+  color: blue;
+}
+
+#menu-now .link {
+  text-decoration: none;
+  color: black;
+}
+
+#menu-now a:hover {
+  text-decoration: none;
+  color: blue;
+}
+
+#menu-now > a {
+  text-decoration: none;
+  color: black;
+}
+
+#menu-now > a:hover {
+  text-decoration: none;
+  color: blue;
+}
+.header #menu-now {
+  top: 32px;
+
+  left: 115px;
+  position: absolute;
+}
+
+/* #textarea-chat {
+  width: 100px;
+} */
+#textarea {
+  width: 80%;
+  font-size: 30px;
+  margin-left: 20px;
+}
+body > main > div > div:nth-child(3) > div > div > button {
+  margin-left: 20px;
+}
