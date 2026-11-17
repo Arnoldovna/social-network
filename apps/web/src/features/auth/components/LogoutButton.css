@@ -1,0 +1,15 @@
+@reference "#styles/main.css";
+
+/*
+ * LogoutButton: a text button (pattern A) in the header; a failed logout's message wraps below it at prose width, so
+ * it never pushes the header row wider than the viewport. Structural rules only; visual polish follows in Phase 4.
+ */
+@layer components {
+  .logout-button {
+    @apply flex flex-col items-start gap-2 min-inline-0 max-inline-prose;
+  }
+
+  .logout-button__button {
+    @apply shrink-0;
+  }
+}

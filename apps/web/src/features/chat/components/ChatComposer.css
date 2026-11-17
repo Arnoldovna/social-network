@@ -1,0 +1,32 @@
+@reference "#styles/main.css";
+
+/*
+ * ChatComposer: the underline textarea and the outlined "send" button (maw-design-system §6). The form is the size
+ * container and its row queries it (an element never matches its own container): stacked on narrow containers, from
+ * the `row` width (36rem) on the button sits at the end of the field, aligned to its underline.
+ */
+@layer components {
+  .chat-composer {
+    container-type: inline-size;
+  }
+
+  .chat-composer__row {
+    @apply flex flex-col items-start gap-4;
+
+    @variant @row {
+      @apply flex-row items-center gap-6;
+    }
+  }
+
+  .chat-composer__field {
+    @apply inline-full;
+
+    @variant @row {
+      @apply flex-1;
+    }
+  }
+
+  .chat-composer__send {
+    @apply shrink-0;
+  }
+}

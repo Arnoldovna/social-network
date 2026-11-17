@@ -1,0 +1,8 @@
+@reference "#styles/main.css";
+
+/* ProfileFallback: the visually hidden page heading takes no space of its own. */
+@layer components {
+  .profile-fallback__title {
+    @apply m-0;
+  }
+}

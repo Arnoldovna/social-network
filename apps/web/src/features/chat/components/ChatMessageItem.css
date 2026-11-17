@@ -1,0 +1,80 @@
+@reference "#styles/main.css";
+
+/*
+ * ChatMessageItem: a maw list row (ADR-0015). Avatar left, then the meta line (author name in medium weight, the time
+ * in tracked meta) and the message text below; a 1px rule under each row. Tight inside the row, the rule separates.
+ * The viewer's own messages carry a 2px rose marker on the inline-start side; it is decorative, the author name says
+ * the same in ink (maw-design-system §4). A failed message adds the 2px error rule in front of its ink sentence.
+ */
+@layer components {
+  .chat-message {
+    @apply flex items-start gap-3 m-0 pbs-4 pbe-3 ps-0 pe-0 border-be border-rule;
+
+    list-style: none;
+  }
+
+  .chat-message--own {
+    @apply ps-3;
+
+    border-inline-start: var(--rule-width-strong) solid var(--color-accent);
+  }
+
+  /* Failed: the row's rule turns ink as well, so the row reads as needing attention without colour (§4). */
+  .chat-message--failed {
+    @apply border-rule-strong;
+  }
+
+  .chat-message--sending {
+    @apply text-ink-muted;
+  }
+
+  .chat-message__avatar {
+    @apply shrink-0;
+  }
+
+  .chat-message__content {
+    @apply flex min-inline-0 flex-1 flex-col gap-1;
+  }
+
+  .chat-message__meta {
+    @apply flex flex-wrap items-baseline gap-x-3 gap-y-1 m-0;
+  }
+
+  .chat-message__author {
+    @apply text-body font-medium text-ink no-underline;
+
+    overflow-wrap: anywhere;
+
+    @variant hover {
+      @apply underline;
+    }
+  }
+
+  .chat-message__time,
+  .chat-message__status {
+    @apply text-meta text-ink-muted;
+
+    font-variant-numeric: tabular-nums;
+  }
+
+  .chat-message__body {
+    @apply m-0 text-body max-inline-prose;
+
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .chat-message__failure {
+    @apply flex flex-wrap items-baseline gap-x-6 gap-y-2 mbs-2;
+  }
+
+  .chat-message__reason {
+    @apply m-0 ps-3 text-meta text-ink max-inline-prose;
+
+    border-inline-start: var(--rule-width-strong) solid var(--color-error);
+  }
+
+  .chat-message__actions {
+    @apply flex flex-wrap items-baseline gap-x-6 gap-y-2;
+  }
+}

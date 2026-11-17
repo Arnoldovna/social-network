@@ -1,0 +1,44 @@
+@reference "#styles/main.css";
+
+/*
+ * ChatLog: the history as one left-aligned column of message rows inside its own scroll container, capped at the
+ * prose height token so the composer below stays in reach. No box around it: the 1px ink-muted rule on top and the
+ * rows' own rules carry the structure (maw-design-system §1). `overflow-anchor: none` because use-stick-to-bottom
+ * keeps the reading position itself when older messages are added on top; the browser's anchoring would add the same
+ * offset twice. The "new messages" pill sits over the bottom edge of the log (no layout shift), paper on ink border.
+ */
+@layer components {
+  .chat-log {
+    @apply relative flex flex-col gap-3;
+  }
+
+  .chat-log__older {
+    @apply flex flex-col items-start gap-2;
+  }
+
+  .chat-log__start {
+    @apply m-0 text-meta text-ink-muted;
+  }
+
+  .chat-log__scroller {
+    @apply overflow-y-auto pbe-2 border-bs border-ink-muted;
+
+    max-block-size: var(--container-prose);
+    overflow-anchor: none;
+    overscroll-behavior: contain;
+  }
+
+  .chat-log__list {
+    @apply flex flex-col m-0 p-0;
+
+    list-style: none;
+  }
+
+  .chat-log__new {
+    @apply absolute;
+
+    inset-block-end: --spacing(3);
+    inset-inline-start: 0;
+    z-index: var(--layer-preview);
+  }
+}

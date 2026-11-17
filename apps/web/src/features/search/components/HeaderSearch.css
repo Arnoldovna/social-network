@@ -1,0 +1,130 @@
+@reference "#styles/main.css";
+
+/*
+ * HeaderSearch: "find people" in the site header (maw-design-system §6 "Form field" and "List row", ADR-0015).
+ * Label above in muted meta, underline-only input (ink-muted, 2px ink on focus). The popup is paper with a 1px ink
+ * border, no radius and no shadow; results are list rows with a 1px rule. The active option is the rose field with
+ * on-accent text and a 2px underline on the name, so it is never marked by colour alone (maw §4).
+ * Below 640 px the header shows the search in its menu panel, where the popup sits in the flow under the input; from
+ * 640 px it overlays the page below the header row, aligned to the end of the search.
+ * Structural rules for Phase 3; visual polish follows in Phase 4b.
+ */
+@layer components {
+  .header-search {
+    @apply relative flex flex-col gap-1 m-0 min-inline-0;
+  }
+
+  .header-search__label {
+    @apply text-meta text-ink-muted;
+  }
+
+  .header-search__input {
+    @apply inline-full min-inline-0 m-0 pbs-2 pbe-2 ps-0 pe-0 text-lead text-ink bg-paper font-sans font-regular;
+
+    appearance: none;
+    border: 0;
+    border-block-end: var(--rule-width) solid var(--color-ink-muted);
+    border-radius: 0;
+
+    &:focus-visible {
+      outline: none;
+      padding-block-end: calc(--spacing(2) - var(--rule-width));
+      border-block-end: var(--rule-width-strong) solid var(--color-ink);
+    }
+
+    @variant sm {
+      @apply pbs-1 pbe-1 text-body;
+
+      &:focus-visible {
+        padding-block-end: calc(--spacing(1) - var(--rule-width));
+      }
+    }
+  }
+
+  /*
+   * Closed, the popup holds only the empty live region (an empty paragraph without padding) and takes no space. The
+   * live region is never hidden with `display: none`, or screen readers could miss the first announcement.
+   */
+  .header-search__popup {
+    @apply min-inline-0;
+  }
+
+  .header-search__popup--open {
+    @apply flex flex-col gap-3 mbs-2 pbs-2 pbe-3 ps-3 pe-3 bg-paper text-ink;
+
+    border: var(--rule-width) solid var(--color-ink);
+
+    @variant sm {
+      @apply absolute mbs-2;
+
+      inset-block-start: 100%;
+      inset-inline-end: 0;
+      z-index: var(--layer-preview);
+      inline-size: max(100%, calc(var(--container-row) / 2));
+    }
+  }
+
+  .header-search__list {
+    @apply m-0 p-0 overflow-y-auto;
+
+    list-style: none;
+    max-block-size: calc(--spacing(32) * 3);
+  }
+
+  .header-search__item {
+    @apply m-0 p-0;
+  }
+
+  .header-search__option {
+    @apply flex items-center gap-3 pbs-2 pbe-2 ps-1 pe-1 text-ink no-underline border-be border-rule;
+
+    &:hover {
+      @apply border-rule-strong;
+    }
+
+    &[aria-selected='true'] {
+      @apply bg-accent text-on-accent;
+
+      border-block-end-color: var(--color-on-accent);
+    }
+  }
+
+  .header-search__avatar {
+    @apply shrink-0;
+  }
+
+  .header-search__name {
+    @apply min-inline-0 text-body font-medium;
+
+    overflow-wrap: anywhere;
+
+    .header-search__option:hover & {
+      @apply underline;
+    }
+
+    .header-search__option[aria-selected='true'] & {
+      @apply underline;
+
+      text-decoration-thickness: var(--rule-width-strong);
+    }
+  }
+
+  .header-search__status {
+    @apply m-0 text-meta text-ink;
+  }
+
+  /* The error sentence stays ink; the 2px error rule before it is the marker (maw §4). */
+  .header-search__status--error {
+    @apply ps-3;
+
+    border-inline-start: var(--rule-width-strong) solid var(--color-error);
+  }
+
+  .header-search__hint {
+    @apply m-0 text-meta text-ink-muted;
+  }
+
+  .header-search__retry {
+    @apply self-start;
+  }
+}

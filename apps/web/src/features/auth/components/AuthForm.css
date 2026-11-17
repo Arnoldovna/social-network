@@ -1,0 +1,24 @@
+@reference "#styles/main.css";
+
+/*
+ * AuthForm: the fields stacked in one column at prose width, generous space before the submit button, which keeps
+ * its own width (outlined button, maw-design-system §6). The form-level error sits between fields and button, where
+ * the eye goes before submitting again. Structural rules only; visual polish follows in Phase 4.
+ */
+@layer components {
+  .auth-form {
+    @apply flex flex-col items-start gap-8 inline-full max-inline-prose;
+  }
+
+  .auth-form__fields {
+    @apply flex flex-col gap-6 self-stretch;
+  }
+
+  .auth-form__error {
+    @apply self-stretch;
+  }
+
+  .auth-form__submit {
+    @apply mbs-2;
+  }
+}

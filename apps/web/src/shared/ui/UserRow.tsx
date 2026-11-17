@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 
 import { fullName } from '../lib/names';
+import { profilePath } from '../lib/paths';
 import { Avatar } from './Avatar';
 import './UserRow.css';
 
@@ -30,7 +31,7 @@ export function UserRow({ user, meta, actions, as: Element = 'li' }: UserRowProp
       <div className="user-row__body">
         <Avatar firstName={user.firstName} lastName={user.lastName} src={user.avatarUrl} />
         <div className="user-row__text">
-          <Link className="user-row__name" to={`/users/${String(user.id)}`}>
+          <Link className="user-row__name" to={profilePath(user.id)}>
             {name}
           </Link>
           {hasMeta ? <p className="user-row__meta">{meta}</p> : null}

@@ -35,7 +35,8 @@ export function SiteHeader() {
 
   const closeMenuOnEscape = (event: KeyboardEvent<HTMLElement>) => {
     // A control inside the panel that uses Escape itself (the search combobox closing its listbox) prevents the
-    // default, so one Escape never does both.
+    // default, so one Escape never does both. An open modal dialog in the header (the avatar upload dialog) keeps its
+    // Escape to itself (the shared `Dialog` stops its propagation), so it never reaches this handler.
     if (!menuOpen || event.key !== 'Escape' || event.defaultPrevented) {
       return;
     }

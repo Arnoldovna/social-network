@@ -374,6 +374,15 @@ frozen for 4b.
 | -------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- | ---------------------------------------- |
 | **foundation + app shell** | `styles/base.css`, `styles/utilities.css` (tokens.css stays verbatim except the accent), `shared/ui/*.css`, `app/**/*.css` | F-93, F-94, F-98, F-99, F-102–F-104 | B-106, B-109, B-113–B-131 (global rules) |
 
+Carried over from Gate 3 into 4a:
+
+- `shared/ui/Button.css`: the hover inversion (`.button:enabled:hover`, `.button--outlined:enabled:hover`) must
+  exclude `[aria-disabled='true']`, and `aria-disabled` is styled like `:disabled` (wall "load older posts" and the
+  avatar "save" keep focus via `aria-disabled` while busy).
+- Chat log height: `ChatLog.css` caps the log at `var(--container-prose)`; at 390×844 the composer can fall below
+  the fold. 4a decides between a viewport-aware rule in `base.css`/`utilities.css` and a token (tokens.css changes
+  beyond the accent need a docs change first).
+
 **4b – feature CSS (parallel, after 4a).** Each unit `@reference`s the frozen `main.css` and styles only its own
 features.
 

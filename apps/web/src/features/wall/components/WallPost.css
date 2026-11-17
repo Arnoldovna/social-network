@@ -1,0 +1,72 @@
+@reference "#styles/main.css";
+
+/*
+ * WallPost: a list row (ADR-0015). Avatar left, then name and time, the text below and "delete post" as a text
+ * button. The 1px rule below turns ink while the row is hovered or holds focus. The article is the size container;
+ * from the `row` width on, the time moves to the end of the name line (an element never matches its own container,
+ * so the query sits on the header).
+ */
+@layer components {
+  .wall-post {
+    @apply flex items-start gap-4 pbs-6 pbe-4 border-be border-rule;
+
+    container-type: inline-size;
+
+    &:hover,
+    &:focus-within {
+      @apply border-rule-strong;
+    }
+  }
+
+  .wall-post__avatar {
+    @apply shrink-0;
+  }
+
+  .wall-post__content {
+    @apply flex min-inline-0 flex-1 flex-col items-start gap-3;
+  }
+
+  .wall-post__header {
+    @apply flex inline-full flex-col gap-1;
+
+    @variant @row {
+      @apply flex-row items-baseline justify-between gap-4;
+    }
+  }
+
+  .wall-post__author {
+    @apply m-0 text-lead font-medium;
+
+    overflow-wrap: anywhere;
+  }
+
+  .wall-post__author-link {
+    @apply inline-block text-ink no-underline;
+
+    @variant hover {
+      @apply underline;
+
+      @variant motion-safe {
+        @apply animate-shake;
+      }
+    }
+  }
+
+  .wall-post__time {
+    @apply shrink-0 text-meta text-ink-muted;
+
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Text as typed: line breaks kept, long words and links wrap instead of widening the page (F-98). */
+  .wall-post__body {
+    @apply m-0 text-body max-inline-prose;
+
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+  }
+
+  .wall-post__delete {
+    @apply text-meta;
+  }
+}

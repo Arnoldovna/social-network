@@ -1,0 +1,49 @@
+@reference "#styles/main.css";
+
+/*
+ * Profile header (F-24, F-40): the large square avatar, then name, bio and actions. Stacked in a narrow column; from
+ * the `row` container width on, the picture sits left and the text column beside it (left-aligned, editorial). The
+ * block is the container, its layout element is queried. Structural rules only; Phase 4 polishes.
+ */
+@layer components {
+  .profile-header {
+    @apply pbe-8 border-be border-rule;
+
+    container-type: inline-size;
+  }
+
+  .profile-header__layout {
+    @apply grid gap-6;
+
+    grid-template-columns: minmax(0, 1fr);
+
+    @variant @row {
+      @apply gap-8;
+
+      grid-template-columns: auto minmax(0, 1fr);
+    }
+  }
+
+  /* The avatar keeps its fixed square size and hangs from the start edge, also in the one-column layout. */
+  .profile-header__avatar {
+    @apply flex items-start justify-start;
+  }
+
+  .profile-header__body {
+    @apply flex flex-col items-start gap-4 min-inline-0;
+  }
+
+  .profile-header__name {
+    @apply m-0 text-title-l font-medium;
+
+    overflow-wrap: anywhere;
+  }
+
+  .profile-header__bio {
+    @apply inline-full max-inline-prose;
+  }
+
+  .profile-header__actions {
+    @apply flex flex-wrap items-center gap-4;
+  }
+}

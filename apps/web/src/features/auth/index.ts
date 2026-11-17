@@ -1,41 +1,20 @@
-import { createElement, Fragment } from 'react';
-
 /*
- * Public API of the auth feature, fixed in Phase 1c (BUILD-ORDER "Web feature exports"). These are stubs so the router
- * and the header can import every feature from the start; the Phase 3 auth unit replaces this body with re-exports of
- * its pages and components and keeps the names and prop types.
+ * Public API of the auth feature (BUILD-ORDER "Web feature exports fixed in Phase 1c"): the three welcome pages for
+ * the router, the brand panel for `WelcomeLayout` and the logout button for the header. Everything else (the API
+ * endpoints, the form shell) stays internal; other features and the app shell import only from here.
  */
 
-function stubPage(title: string) {
-  return createElement(
-    Fragment,
-    null,
-    createElement('title', null, `${title} · Let's chat!`),
-    createElement('h1', null, title),
-  );
-}
-
 /** `/welcome`: the registration form (F-06). */
-export function RegisterPage() {
-  return stubPage('Sign up');
-}
+export { RegisterPage } from './pages/RegisterPage';
 
 /** `/welcome/login`: the login form; `?reason=expired` shows the session-expired message (F-14, F-22). */
-export function LoginPage() {
-  return stubPage('Log in');
-}
+export { LoginPage } from './pages/LoginPage';
 
 /** `/welcome/about`: about the project (F-97). */
-export function AboutPage() {
-  return stubPage('About');
-}
+export { AboutPage } from './pages/AboutPage';
 
 /** The rose brand panel beside the welcome forms (F-95). */
-export function BrandPanel() {
-  return null;
-}
+export { BrandPanel } from './components/BrandPanel';
 
 /** "log out" in the header (F-20). */
-export function LogoutButton() {
-  return null;
-}
+export { LogoutButton } from './components/LogoutButton';

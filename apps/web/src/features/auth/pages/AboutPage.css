@@ -1,0 +1,71 @@
+@reference "#styles/main.css";
+
+/*
+ * AboutPage: title, two paragraphs of running text at prose width, a section label ("built with": lowercase caption
+ * with a muted 1px rule, maw-design-system §6) and the stack as list rows: name left, role right from the `row`
+ * container width, stacked with a 1px ink rule between them on narrow columns (§1 rule 3). Structural rules only;
+ * visual polish follows in Phase 4.
+ */
+@layer components {
+  .about-page {
+    @apply flex flex-col items-start;
+  }
+
+  .about-page__title {
+    @apply m-0 mbe-6 text-title-l font-regular;
+  }
+
+  .about-page__text {
+    @apply flex flex-col gap-4 max-inline-prose;
+  }
+
+  .about-page__paragraph {
+    @apply m-0 text-body text-ink;
+  }
+
+  .about-page__section {
+    @apply mbs-16 self-stretch;
+
+    container-type: inline-size;
+  }
+
+  .about-page__section-title {
+    @apply m-0 pbe-2 text-caption font-medium;
+
+    border-block-end: var(--rule-width) solid var(--color-ink-muted);
+  }
+
+  .about-page__stack {
+    @apply flex flex-col m-0;
+  }
+
+  .about-page__stack-row {
+    @apply flex flex-col pbs-4 pbe-3 border-be border-rule;
+
+    @variant @row {
+      @apply grid items-baseline gap-x-6;
+
+      grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    }
+  }
+
+  .about-page__stack-name {
+    @apply pbe-2 text-lead font-medium;
+
+    border-block-end: var(--rule-width) solid var(--color-ink);
+
+    @variant @row {
+      @apply pbe-0;
+
+      border-block-end: 0;
+    }
+  }
+
+  .about-page__stack-role {
+    @apply m-0 pbs-2 text-meta text-ink-muted;
+
+    @variant @row {
+      @apply pbs-0;
+    }
+  }
+}

@@ -137,6 +137,35 @@ describe('Dialog', () => {
     expect(screen.getByRole('dialog', { name: 'profile picture' })).toBeInTheDocument();
   });
 
+  it('keeps Escape to itself: ancestors never see it, and nothing prevents the cancel that follows (F-34)', async () => {
+    const user = userEvent.setup();
+    const keysSeenOutside: string[] = [];
+    const { container } = render(
+      <div
+        onKeyDown={(event) => {
+          keysSeenOutside.push(event.key);
+          // Like the header menu: an ancestor that closes itself on Escape and claims the key.
+          event.preventDefault();
+        }}
+      >
+        <Dialog open onClose={vi.fn()} title="profile picture">
+          <button type="button">save</button>
+        </Dialog>
+      </div>,
+    );
+    const escapeDefaults: boolean[] = [];
+    // Added after React's own listener on the root, so it sees the event once every handler ran.
+    container.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') escapeDefaults.push(event.defaultPrevented);
+    });
+    screen.getByRole('button', { name: 'save' }).focus();
+
+    await user.keyboard('{Escape}{ArrowDown}');
+
+    expect(keysSeenOutside).toEqual(['ArrowDown']);
+    expect(escapeDefaults).toEqual([false]);
+  });
+
   it('closes on a click on the backdrop', () => {
     const { onClose } = renderDialog();
     const dialog = getDialogElement();

@@ -145,22 +145,65 @@ function normalise(result: RawResult): SendResult {
     : { error: toClientError(result.error, result.meta), meta: result.meta };
 }
 
+/** How an unsafe request sent with the session's CSRF token ended: its own result, or the token request's failure. */
+export type CsrfSendOutcome<Result> = { kind: 'sent'; result: Result } | { kind: 'token-failed'; error: ApiError };
+
+/**
+ * Steps 2 and 3 of the base query for any unsafe request, so one sent outside `fetchBaseQuery` (the avatar upload's
+ * `XMLHttpRequest`, the only browser API with upload progress) keeps exactly the same CSRF contract (ADR-0005,
+ * ADR-0012): `sendOnce` gets the session's token, loaded lazily and shared by every waiting mutation (`csrf.ts`); when
+ * `isCsrfRejection` recognises a 403 `csrf-invalid` (the session was rotated since the token was loaded), the token
+ * is dropped and `sendOnce` runs once more with a fresh one. A failed token request ends it with that request's error.
+ */
+export async function sendWithCsrfToken<Result>(
+  api: BaseQueryApi,
+  extraOptions: object,
+  sendOnce: (token: string) => Promise<Result>,
+  isCsrfRejection: (result: Result) => boolean,
+): Promise<CsrfSendOutcome<Result>> {
+  const attempt = async (): Promise<CsrfSendOutcome<Result>> => {
+    let token: string;
+    try {
+      token = await ensureCsrfToken(() => loadCsrfToken(api, extraOptions));
+    } catch (error: unknown) {
+      return { kind: 'token-failed', error: error instanceof CsrfTokenError ? error.apiError : networkError() };
+    }
+    return { kind: 'sent', result: await sendOnce(token) };
+  };
+
+  const first = await attempt();
+  if (first.kind === 'sent' && isCsrfRejection(first.result)) {
+    clearCsrfToken();
+    return attempt();
+  }
+  return first;
+}
+
+/**
+ * Step 5 for a request that is not a session probe, also one sent outside the base query (the avatar upload): a 401
+ * dispatches `sessionExpired` only when the client was signed in when it arrived, so a visitor is never told that a
+ * session expired and a signed-in user sees the message once (ADR-0012).
+ */
+export function reportUnauthorized(api: BaseQueryApi, error: ApiError): void {
+  if (error.status === 401 && isAuthenticated(api.getState())) {
+    api.dispatch(sessionExpired());
+  }
+}
+
 async function send(request: ParsedRequest, api: BaseQueryApi, extraOptions: object): Promise<SendResult> {
   if (SAFE_METHODS.has(request.method)) {
     return normalise(await rawBaseQuery(request.args, api, extraOptions));
   }
-  let token: string;
-  try {
-    token = await ensureCsrfToken(() => loadCsrfToken(api, extraOptions));
-  } catch (error: unknown) {
-    return {
-      error: error instanceof CsrfTokenError ? error.apiError : networkError(),
-      meta: undefined,
-      fromTokenRequest: true,
-    };
-  }
-  const args = { ...request.args, headers: withCsrfHeader(request.args.headers, token) };
-  return normalise(await rawBaseQuery(args, api, extraOptions));
+  const outcome = await sendWithCsrfToken(
+    api,
+    extraOptions,
+    async (token) => {
+      const args = { ...request.args, headers: withCsrfHeader(request.args.headers, token) };
+      return normalise(await rawBaseQuery(args, api, extraOptions));
+    },
+    (result) => result.error?.code === 'csrf-invalid',
+  );
+  return outcome.kind === 'sent' ? outcome.result : { error: outcome.error, meta: undefined, fromTokenRequest: true };
 }
 
 /**
@@ -174,12 +217,7 @@ async function send(request: ParsedRequest, api: BaseQueryApi, extraOptions: obj
  */
 export const baseQuery: AppBaseQuery = async (args, api, extraOptions) => {
   const request = parseRequest(args);
-
-  let result = await send(request, api, extraOptions);
-  if (result.error?.code === 'csrf-invalid' && !SAFE_METHODS.has(request.method)) {
-    clearCsrfToken();
-    result = await send(request, api, extraOptions);
-  }
+  const result = await send(request, api, extraOptions);
 
   const { meta } = result;
   if (result.error === undefined) {
@@ -187,9 +225,8 @@ export const baseQuery: AppBaseQuery = async (args, api, extraOptions) => {
   }
 
   const { error } = result;
-  const fromSessionProbe = result.fromTokenRequest === true || isSessionProbe(request);
-  if (error.status === 401 && !fromSessionProbe && isAuthenticated(api.getState())) {
-    api.dispatch(sessionExpired());
+  if (result.fromTokenRequest !== true && !isSessionProbe(request)) {
+    reportUnauthorized(api, error);
   }
   return meta === undefined ? { error } : { error, meta };
 };

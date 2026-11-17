@@ -1,0 +1,48 @@
+@reference "#styles/main.css";
+
+/*
+ * Bio editor (F-26–F-32): the bio as running text (line breaks kept, F-32), the empty sentence in muted ink, one text
+ * button; in edit mode the shared TextArea and the "save" / "cancel" pair. The status line is a polite live region
+ * that stays in the DOM, so its sentence is announced when it appears. Structural rules only; Phase 4 polishes.
+ */
+@layer components {
+  /* Margins instead of a gap, so the empty status line takes no space while it stays in the accessibility tree. */
+  .bio-editor {
+    @apply flex flex-col items-start inline-full;
+  }
+
+  .bio-editor__text {
+    @apply m-0 text-lead max-inline-prose;
+
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+  }
+
+  .bio-editor__text--empty {
+    @apply text-ink-muted;
+  }
+
+  .bio-editor__form {
+    @apply flex flex-col gap-4 inline-full;
+  }
+
+  .bio-editor__field {
+    @apply inline-full;
+  }
+
+  .bio-editor__toggle {
+    @apply mbs-3;
+  }
+
+  .bio-editor__actions {
+    @apply flex flex-wrap items-center gap-6;
+  }
+
+  .bio-editor__status {
+    @apply m-0 text-meta;
+
+    &:not(:empty) {
+      @apply mbs-3;
+    }
+  }
+}

@@ -157,6 +157,31 @@ describe('connectRealtime', () => {
     expect(expiries()).toBe(0);
   });
 
+  it('reports the connect as resumed when the caller says events were missed (a failed logout, F-107)', async () => {
+    const { connectRealtime, disconnectRealtime, store, signIn, actionsOfType } = await load();
+    await signIn();
+    connectRealtime(store);
+    fake.accept();
+    disconnectRealtime();
+
+    connectRealtime(store, { resume: true });
+    fake.accept();
+
+    expect(actionsOfType('realtime/connected').at(-1)).toEqual({
+      type: 'realtime/connected',
+      payload: { resumed: true },
+    });
+
+    // The next ordinary connect starts fresh again.
+    disconnectRealtime();
+    connectRealtime(store);
+    fake.accept();
+    expect(actionsOfType('realtime/connected').at(-1)).toEqual({
+      type: 'realtime/connected',
+      payload: { resumed: false },
+    });
+  });
+
   it('shows reconnecting while the server is unreachable, leaving the retries to socket.io-client', async () => {
     vi.useFakeTimers();
     const { connectRealtime, store, status } = await load();

@@ -1,0 +1,31 @@
+@reference "#styles/main.css";
+
+/* WallPostList: an unstyled ordered list of post rows, then "load older posts" with its error below. */
+@layer components {
+  .wall-post-list {
+    @apply flex flex-col gap-8;
+  }
+
+  .wall-post-list__items {
+    @apply m-0 p-0;
+
+    list-style: none;
+  }
+
+  .wall-post-list__item {
+    @apply m-0 p-0;
+  }
+
+  .wall-post-list__more {
+    @apply flex flex-col items-start gap-3;
+  }
+
+  /* Busy but focusable (aria-disabled, not disabled): muted outline, no hover inversion, a progress cursor. */
+  .wall-post-list__load {
+    &[aria-disabled='true'] {
+      @apply text-ink-muted bg-paper cursor-progress;
+
+      border-color: var(--color-ink-muted);
+    }
+  }
+}

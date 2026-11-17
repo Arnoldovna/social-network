@@ -110,12 +110,21 @@ function handleConnectError(error: Error): void {
   }, HANDSHAKE_RETRY_MS);
 }
 
+export interface ConnectRealtimeOptions {
+  /**
+   * The signed-in user had no live socket for a while although the session went on: a logout that closed the socket
+   * first and then failed (ADR-0012). Events of that gap are lost, so the next `connect` is reported as resumed and the
+   * real-time caches resync (F-107), as after a dropped connection.
+   */
+  resume?: boolean;
+}
+
 /**
  * Connects the tab's socket for a signed-in user and reports its status to the `realtime` slice. Calling it again
  * while the socket is connected, connecting or waiting to retry does nothing, so client-side navigation never opens a
  * second connection (F-03, B-79).
  */
-export function connectRealtime(target: RealtimeStore): AppSocket {
+export function connectRealtime(target: RealtimeStore, { resume = false }: ConnectRealtimeOptions = {}): AppSocket {
   store = target;
   const current = getSocket();
   if (!lifecycleBound) {
@@ -127,7 +136,7 @@ export function connectRealtime(target: RealtimeStore): AppSocket {
   if (current.connected || current.active || retryTimer !== undefined) {
     return current;
   }
-  interrupted = false;
+  interrupted = resume;
   target.dispatch(realtimeActions.connecting());
   current.connect();
   return current;

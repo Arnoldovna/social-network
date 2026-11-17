@@ -38,3 +38,37 @@ export function initials({ firstName, lastName }: PersonName): string {
 export function possessive(name: string): string {
   return `${name.trim()}'s`;
 }
+
+/** A person in one of the API's name-ordered lists (search, friends, presence). */
+export interface NamedPerson extends PersonName {
+  id: number;
+}
+
+/** Compares two strings by Unicode code point (not UTF-16 code unit, which differs above U+FFFF). */
+function compareCodePoints(a: string, b: string): number {
+  const left = Array.from(a, (char) => char.codePointAt(0) ?? 0);
+  const right = Array.from(b, (char) => char.codePointAt(0) ?? 0);
+  const length = Math.min(left.length, right.length);
+  for (let index = 0; index < length; index += 1) {
+    const difference = (left[index] ?? 0) - (right[index] ?? 0);
+    if (difference !== 0) {
+      return difference;
+    }
+  }
+  return left.length - right.length;
+}
+
+/**
+ * The order of every list of people the API sends (`userNameOrder()` in `apps/api/src/db/selections.ts`):
+ * `lower(first_name)`, then `lower(last_name)`, then the id. The database compares the lower-cased names by code point
+ * (the `en_US.utf8` collation of the musl-based Postgres image does not reorder accents or digits, so "Zoe" comes
+ * before "Élodie" and "anna10" before "anna2"), so this does too. A person a socket event adds to a cached list is
+ * slotted in exactly where a reload would put them; this is the one client copy of that rule.
+ */
+export function compareByName(a: NamedPerson, b: NamedPerson): number {
+  return (
+    compareCodePoints(a.firstName.toLowerCase(), b.firstName.toLowerCase()) ||
+    compareCodePoints(a.lastName.toLowerCase(), b.lastName.toLowerCase()) ||
+    a.id - b.id
+  );
+}

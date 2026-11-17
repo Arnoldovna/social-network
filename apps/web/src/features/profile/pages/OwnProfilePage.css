@@ -1,0 +1,15 @@
+@reference "#styles/main.css";
+
+/*
+ * Own profile page (F-24): the profile header, then the wall with generous space between the two sections (maw
+ * rhythm: tight inside a block, wide between sections). Structural rules only; Phase 4 polishes.
+ */
+@layer components {
+  .own-profile-page {
+    @apply flex flex-col;
+  }
+
+  .own-profile-page__wall {
+    @apply pbs-16;
+  }
+}

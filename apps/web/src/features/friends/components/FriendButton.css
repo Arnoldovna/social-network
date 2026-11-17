@@ -1,0 +1,20 @@
+@reference "#styles/main.css";
+
+/*
+ * FriendButton: the friendship actions for one person (F-45). On a profile the primary action is the outlined button
+ * with any secondary text button beside it; in a list row (`--row`) all actions are text buttons that the row places at
+ * its end. An error message sits below the buttons (FieldError).
+ */
+@layer components {
+  .friend-button {
+    @apply flex flex-col items-start gap-3;
+  }
+
+  .friend-button__actions {
+    @apply flex flex-wrap items-center gap-x-6 gap-y-3;
+  }
+
+  .friend-button--row {
+    @apply gap-2;
+  }
+}

@@ -1,0 +1,49 @@
+@reference "#styles/main.css";
+
+/*
+ * Another user's profile (F-40, F-42): the profile header with the bio as running text (line breaks kept, F-32) and
+ * the friend button, then the wall. "This user does not exist." is a left-aligned empty-state composition: a large
+ * sentence, one muted line, one text link (maw-design-system §6). Structural rules only; Phase 4 polishes.
+ */
+@layer components {
+  .user-profile-page {
+    @apply flex flex-col;
+  }
+
+  .user-profile-page__bio {
+    @apply m-0 text-lead max-inline-prose;
+
+    white-space: pre-line;
+    overflow-wrap: anywhere;
+  }
+
+  .user-profile-page__bio--empty {
+    @apply text-ink-muted;
+  }
+
+  .user-profile-page__wall {
+    @apply pbs-16;
+  }
+
+  .user-profile-page__missing {
+    @apply flex flex-col items-start gap-4 pbs-12 pbe-12;
+  }
+
+  .user-profile-page__missing-title {
+    @apply m-0 text-title-l font-regular;
+  }
+
+  .user-profile-page__missing-text {
+    @apply m-0 text-body text-ink-muted max-inline-prose;
+  }
+
+  .user-profile-page__missing-link {
+    @apply text-body text-ink;
+
+    text-decoration-thickness: var(--rule-width);
+
+    @variant hover {
+      text-decoration-thickness: var(--rule-width-strong);
+    }
+  }
+}

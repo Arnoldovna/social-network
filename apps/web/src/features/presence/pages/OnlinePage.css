@@ -1,0 +1,41 @@
+@reference "#styles/main.css";
+
+/*
+ * Online page (F-86–F-89): a page title with the live count as tracked meta below it, then the people as maw list
+ * rows (`UserRow` brings the rows and their rules). Structural rules only; visual polish follows in Phase 4.
+ */
+@layer components {
+  .online-page {
+    @apply flex flex-col gap-8;
+  }
+
+  .online-page__header {
+    @apply flex flex-col gap-2;
+  }
+
+  .online-page__title {
+    @apply m-0 text-title-l font-regular;
+  }
+
+  .online-page__count {
+    @apply m-0 text-meta text-ink-muted;
+
+    font-variant-numeric: tabular-nums;
+  }
+
+  .online-page__list {
+    @apply m-0 p-0 flex flex-col;
+
+    list-style: none;
+  }
+
+  .online-page__link {
+    @apply text-body text-ink;
+
+    text-decoration-thickness: var(--rule-width);
+
+    @variant hover {
+      text-decoration-thickness: var(--rule-width-strong);
+    }
+  }
+}

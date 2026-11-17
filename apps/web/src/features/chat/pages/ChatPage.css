@@ -1,0 +1,28 @@
+@reference "#styles/main.css";
+
+/*
+ * ChatPage: one left-aligned column at prose width (maw-design-system §1, §6). Page title large, one muted intro
+ * line, then the log and the composer. Generous space between the title block and the log, tighter between the log
+ * and the composer, which belong together.
+ */
+@layer components {
+  .chat-page {
+    @apply flex flex-col gap-8 max-inline-prose;
+  }
+
+  .chat-page__header {
+    @apply flex flex-col gap-3;
+  }
+
+  .chat-page__title {
+    @apply m-0 text-title-l font-regular;
+  }
+
+  .chat-page__intro {
+    @apply m-0 text-body text-ink-muted;
+  }
+
+  .chat-page__history {
+    @apply flex flex-col;
+  }
+}

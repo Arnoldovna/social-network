@@ -1,0 +1,24 @@
+@reference "#styles/main.css";
+
+/*
+ * LoginPage: the same editorial column as the sign-up page. The session-expired notice (F-22) is a flat rose field
+ * with black text (maw-design-system §4); the sentence itself carries the meaning, the colour only frames it.
+ * Structural rules only; visual polish follows in Phase 4.
+ */
+@layer components {
+  .login-page {
+    @apply flex flex-col items-start;
+  }
+
+  .login-page__title {
+    @apply m-0 mbe-3 text-title-l font-regular;
+  }
+
+  .login-page__intro {
+    @apply m-0 mbe-10 text-body text-ink max-inline-prose;
+  }
+
+  .login-page__notice {
+    @apply m-0 mbs-2 mbe-10 ps-4 pe-4 pbs-3 pbe-3 self-stretch max-inline-prose text-body bg-accent text-on-accent;
+  }
+}

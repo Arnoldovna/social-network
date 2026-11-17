@@ -1,0 +1,23 @@
+@reference "#styles/main.css";
+
+/*
+ * WelcomeLinks: the links at the end of the welcome pages, after generous space and a 1px rule (maw-design-system
+ * §1), one per line at prose width. Structural rules only; visual polish follows in Phase 4.
+ */
+@layer components {
+  .welcome-links {
+    @apply flex flex-col gap-3 m-0 mbs-16 p-0 pbs-4 self-stretch max-inline-prose text-body list-none border-bs border-rule;
+  }
+
+  .welcome-links__item {
+    @apply m-0;
+  }
+
+  .welcome-links__link {
+    @apply text-ink;
+
+    @variant hover {
+      text-decoration-thickness: var(--rule-width-strong);
+    }
+  }
+}

@@ -1,0 +1,18 @@
+@reference "#styles/main.css";
+
+/*
+ * FriendsNavBadge: the friend-request count as a flat rose field with black text (ADR-0015, maw-design-system §4: ink on
+ * an accent, never white or muted text on it). The number is also spoken as "2 friend requests", so the colour carries
+ * no meaning on its own.
+ */
+@layer components {
+  .friends-nav-badge {
+    @apply inline-flex items-center;
+  }
+
+  .friends-nav-badge__count {
+    @apply inline-flex items-center pbs-1 pbe-1 ps-2 pe-2 bg-accent text-on-accent text-micro font-medium leading-none;
+
+    font-variant-numeric: tabular-nums;
+  }
+}

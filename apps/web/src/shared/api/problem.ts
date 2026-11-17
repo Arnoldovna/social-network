@@ -1,4 +1,4 @@
-import { Problem, problemCode } from '@app/shared';
+import { AVATAR_MAX_BYTES, Problem, problemCode } from '@app/shared';
 import type { ProblemCode, ProblemFieldError } from '@app/shared';
 
 /**
@@ -28,6 +28,9 @@ export interface ApiError {
   retryAfterSeconds?: number;
 }
 
+/** "2 MB": the upload limit from the shared contract, so the 413 sentence and the upload hint follow it. */
+export const AVATAR_MAX_SIZE_LABEL = `${String(AVATAR_MAX_BYTES / (1024 * 1024))} MB`;
+
 /**
  * The user-facing sentence per code. A `Record` over every code, so a new `ProblemCode` in the contract is a type
  * error here until it has copy. Copy from FEATURES.md where it fixes one (F-10, F-15, F-22, F-36, F-42).
@@ -55,8 +58,8 @@ const MESSAGES: Record<ApiErrorCode, string> = {
   'friendship-exists': 'There is already a friend request between you two.',
   'cannot-befriend-self': 'You cannot send a friend request to yourself.',
   'file-required': 'Choose an image to upload.',
-  'file-too-large': 'The image must be 2 MB or smaller.',
-  'unsupported-media-type': 'Choose a JPEG, PNG, WebP or GIF image.',
+  'file-too-large': `The image must be ${AVATAR_MAX_SIZE_LABEL} or smaller.`,
+  'unsupported-media-type': 'Please choose a JPEG, PNG, WebP or GIF image.',
   'rate-limited': 'Too many requests. Wait a moment and try again.',
 };
 

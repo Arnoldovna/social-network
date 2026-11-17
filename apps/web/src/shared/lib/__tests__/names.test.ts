@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { fullName, initials, possessive } from '../names';
+import { compareByName, fullName, initials, possessive } from '../names';
+import type { NamedPerson } from '../names';
 
 describe('fullName', () => {
   it('joins first and last name with one space', () => {
@@ -57,5 +58,34 @@ describe('possessive', () => {
 
   it('trims the name first', () => {
     expect(possessive('Mira ')).toBe("Mira's");
+  });
+});
+
+describe('compareByName (the API order of every people list)', () => {
+  function person(id: number, firstName: string, lastName = 'Novak'): NamedPerson {
+    return { id, firstName, lastName };
+  }
+
+  function sortedFirstNames(people: NamedPerson[]): string[] {
+    return [...people].sort(compareByName).map((entry) => entry.firstName);
+  }
+
+  it('orders like `lower(first_name), lower(last_name), id` in the database (code point order)', () => {
+    // The order postgres:18-alpine returns for `order by lower(name)` on these values.
+    const expected = ['Anna-Lena', 'anna10', 'anna2', 'annabel', 'elodie', 'emma', 'olaf', 'zoe', 'Élodie', 'Ölaf'];
+    const shuffled = ['zoe', 'Élodie', 'anna2', 'emma', 'Ölaf', 'Anna-Lena', 'olaf', 'annabel', 'anna10', 'elodie'];
+
+    expect(sortedFirstNames(shuffled.map((name, index) => person(index + 1, name)))).toEqual(expected);
+  });
+
+  it('ignores case, then compares the last name, then the id', () => {
+    const people = [person(7, 'mira', 'Novak'), person(3, 'Mira', 'novak'), person(5, 'MIRA', 'Adler')];
+
+    expect([...people].sort(compareByName).map((entry) => entry.id)).toEqual([5, 3, 7]);
+  });
+
+  it('compares by code point above U+FFFF as well', () => {
+    // U+FF21 (fullwidth A) is one UTF-16 unit; U+1D49C (script A) is a surrogate pair that sorts after it by code point.
+    expect(sortedFirstNames([person(1, '𝒜da'), person(2, 'Ａda')])).toEqual(['Ａda', '𝒜da']);
   });
 });

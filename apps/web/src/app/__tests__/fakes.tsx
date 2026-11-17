@@ -1,5 +1,8 @@
 import type { FriendshipState } from '@app/shared';
+import { useState } from 'react';
 import { useParams, useSearchParams } from 'react-router';
+
+import { Dialog } from '../../shared/ui/Dialog';
 
 /*
  * Trivial stand-ins for every feature's public `index.ts` (BUILD-ORDER rule 7). App-shell tests `vi.mock` the feature
@@ -51,13 +54,34 @@ export const profileFeature = {
   UserProfilePage,
 };
 
-export const avatarsFeature = {
-  AvatarButton: ({ variant }: { variant: 'header' | 'profile' }) => (
-    <button type="button" data-variant={variant}>
-      change profile picture
-    </button>
-  ),
-};
+/** Like the real one: a button that opens a modal on the shared `Dialog`, rendered where the button is. */
+function AvatarButton({ variant }: { variant: 'header' | 'profile' }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        data-variant={variant}
+        onClick={() => {
+          setOpen(true);
+        }}
+      >
+        change profile picture
+      </button>
+      <Dialog
+        open={open}
+        onClose={() => {
+          setOpen(false);
+        }}
+        title="Change profile picture"
+      >
+        <button type="button">choose file</button>
+      </Dialog>
+    </>
+  );
+}
+
+export const avatarsFeature = { AvatarButton };
 
 export const friendsFeature = {
   FriendsPage: () => <StandInPage title="Friends" />,

@@ -1,0 +1,80 @@
+@reference "#styles/main.css";
+
+/*
+ * AvatarUploadDialog: the form inside the shared maw modal (F-34, F-35). One column hanging from the left edge:
+ * picture, file field (label above, hint and error below), progress, then the single accent action. The sheet is
+ * narrowed to the prose container, because the content is one 128px picture and one field.
+ */
+@layer components {
+  .avatar-upload-dialog__sheet {
+    max-inline-size: min(var(--container-prose), 100% - --spacing(6));
+  }
+
+  .avatar-upload-dialog {
+    @apply flex flex-col gap-6 m-0;
+  }
+
+  .avatar-upload-dialog__picture {
+    @apply flex;
+  }
+
+  /* Same square and crop as the server's 512px WebP (`fit: cover`), so the preview shows what will be saved. */
+  .avatar-upload-dialog__preview {
+    @apply block size-32 bg-surface;
+
+    aspect-ratio: 1;
+    object-fit: cover;
+  }
+
+  .avatar-upload-dialog__current {
+    @apply block;
+  }
+
+  .avatar-upload-dialog__field {
+    @apply flex flex-col gap-2;
+  }
+
+  .avatar-upload-dialog__label {
+    @apply text-meta text-ink-muted;
+  }
+
+  .avatar-upload-dialog__input {
+    @apply max-inline-full text-body text-ink font-sans;
+
+    /* The native "choose file" control as maw pattern B: outlined rectangle, no radius. */
+    &::file-selector-button {
+      @apply me-3 pbs-2 pbe-2 ps-4 pe-4 text-body font-sans text-ink bg-paper cursor-pointer;
+
+      border: var(--rule-width) solid var(--color-ink);
+      border-radius: 0;
+    }
+  }
+
+  .avatar-upload-dialog__hint {
+    @apply m-0 text-meta text-ink-muted max-inline-prose;
+  }
+
+  /* The live region stays mounted (so its first message is announced) but takes no space while empty. */
+  .avatar-upload-dialog__status {
+    @apply flex flex-col gap-2;
+
+    &:empty {
+      @apply hidden;
+    }
+  }
+
+  .avatar-upload-dialog__status-label {
+    @apply text-meta;
+  }
+
+  .avatar-upload-dialog__progress {
+    @apply inline-full;
+
+    block-size: --spacing(2);
+    accent-color: var(--color-ink);
+  }
+
+  .avatar-upload-dialog__actions {
+    @apply flex gap-4;
+  }
+}

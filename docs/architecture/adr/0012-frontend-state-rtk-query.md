@@ -42,7 +42,11 @@ PLAN.md prescribes Redux Toolkit/RTK Query.
 - The CSRF token lives in memory (`shared/api/csrf.ts`) and is cleared on logout and in the session listener;
   the next mutation fetches a token bound to the new session, so logging in again without a reload works.
 - `LogoutButton` disconnects its socket before posting logout, so the logging-out tab never sees a server-side
-  disconnect and never shows the expiry message.
+  disconnect and never shows the expiry message. A 401 answer means the session had already ended, so the logout
+  completes without the expiry message. Any other failure (network, 429, 5xx) keeps the user signed in: the client
+  reconnects the socket as a resumed connection (`connectRealtime(store, { resume: true })`, so the real-time caches
+  resync like after any other gap, F-107) and says "You are still logged in. …", because clearing the client while
+  the server session stays alive would leave a valid cookie behind a page that looks logged out.
 - Forms: react-hook-form 7.92 + `@hookform/resolvers` 7.0.6 with the shared Zod schemas; controlled inputs,
   defaults from current data (bio editor initialises from the cached bio, B-77). Drafts are cleared only after the
   owner's own successful submit (B-83, F-73, F-80).

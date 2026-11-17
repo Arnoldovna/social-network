@@ -1,0 +1,43 @@
+@reference "#styles/main.css";
+
+/*
+ * AvatarButton: the user's square picture as a native button (F-33, B-103). No box, no ring, no radius
+ * (maw-design-system §8); the global `:focus-visible` ring from base.css marks keyboard focus. The header variant is
+ * the picture alone (its name is visually hidden); the profile variant adds a visible text-button label below.
+ */
+@layer components {
+  .avatar-button {
+    @apply inline-flex flex-col items-start gap-3 p-0 text-ink font-sans cursor-pointer;
+
+    background: none;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .avatar-button--header {
+    @apply items-center;
+  }
+
+  .avatar-button--profile {
+    @apply text-start;
+  }
+
+  /* Block, so the inline-block avatar leaves no baseline gap inside the button. */
+  .avatar-button__picture {
+    @apply block;
+  }
+
+  /* Pattern A text button (maw §6): 1px underline, 2px on hover. */
+  .avatar-button__label {
+    @apply text-meta underline;
+
+    text-decoration-thickness: var(--rule-width);
+    text-underline-offset: var(--underline-offset);
+
+    @media (hover: hover) {
+      .avatar-button:hover & {
+        text-decoration-thickness: var(--rule-width-strong);
+      }
+    }
+  }
+}

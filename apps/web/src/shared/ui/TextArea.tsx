@@ -1,11 +1,10 @@
 import { useId } from 'react';
 import type { ComponentPropsWithRef, ReactNode } from 'react';
 
+import { pluralize } from '../lib/format-count';
 import { tokenList } from '../lib/token-list';
 import { FieldError } from './FieldError';
 import './TextArea.css';
-
-const countFormat = new Intl.NumberFormat('en-GB');
 
 export interface CharacterCount {
   /** Current length of the value (the caller knows it, e.g. from react-hook-form's `watch`). */
@@ -28,10 +27,9 @@ export type TextAreaProps = Omit<ComponentPropsWithRef<'textarea'>, 'className' 
 function describeCharacterCount({ length, max }: CharacterCount): string {
   const remaining = max - length;
   if (remaining >= 0) {
-    return `${countFormat.format(remaining)} ${remaining === 1 ? 'character' : 'characters'} left`;
+    return `${pluralize(remaining, 'character', 'characters')} left`;
   }
-  const over = -remaining;
-  return `${countFormat.format(over)} ${over === 1 ? 'character' : 'characters'} too many`;
+  return `${pluralize(-remaining, 'character', 'characters')} too many`;
 }
 
 /**

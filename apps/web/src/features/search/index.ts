@@ -1,10 +1,7 @@
 /*
- * Public API of the search feature, fixed in Phase 1c (BUILD-ORDER "Web feature exports"). A stub so the header can
- * import it from the start; the Phase 3 search unit replaces this body with a re-export of its component and keeps the
- * name.
+ * Public API of the search feature (BUILD-ORDER "Web feature exports", fixed in Phase 1c). Other parts of the app
+ * import only from here; the header renders `HeaderSearch`.
  */
 
-/** The labelled "Find people" combobox in the header (F-59, F-62). */
-export function HeaderSearch() {
-  return null;
-}
+/** The labelled "find people" combobox in the header (F-59, F-62, F-63). */
+export { HeaderSearch } from './components/HeaderSearch';

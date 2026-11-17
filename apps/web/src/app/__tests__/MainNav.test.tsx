@@ -157,6 +157,26 @@ describe('SiteHeader (F-92, F-94, B-109)', () => {
     expect(searchbox).toHaveFocus();
   });
 
+  it('F-34, F-94: leaves an Escape from inside an open dialog in the header to that dialog', async () => {
+    const { user, menuButton, container } = renderHeader();
+    await user.click(menuButton);
+    // The avatar button renders its upload dialog inside the header (the stand-in uses the shared `Dialog` too).
+    await user.click(screen.getByRole('button', { name: 'change profile picture' }));
+    const dialog = screen.getByRole('dialog', { name: 'Change profile picture' });
+    within(dialog).getByRole('button', { name: 'choose file' }).focus();
+    const escapeDefaults: boolean[] = [];
+    // Added after React's own listener on the root, so it sees the event once every handler ran.
+    container.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') escapeDefaults.push(event.defaultPrevented);
+    });
+
+    await user.keyboard('{Escape}');
+
+    // The menu stays open, and nothing prevented the default the browser turns into the dialog's `cancel`.
+    expect(menuButton).toHaveAttribute('aria-expanded', 'true');
+    expect(escapeDefaults).toEqual([false]);
+  });
+
   it('F-94: closes after a navigation, including to the page that is already open', async () => {
     const { user, menuButton, router } = renderHeader('/chat');
 

@@ -1,10 +1,8 @@
 /*
- * Public API of the wall feature, fixed in Phase 1c (BUILD-ORDER "Web feature exports"). A stub so the profile pages
- * can import it from the start; the Phase 3 wall unit replaces this body with a re-export of its component and keeps
- * the name and the prop type.
+ * Public API of the wall feature (BUILD-ORDER "Web feature exports", fixed in Phase 1c). Other features import only
+ * from here: the profile pages render
+ * `<Wall ownerId={…} ownerFirstName={…} canView={relationship.canViewWall} canPost={relationship.canPostOnWall} />`.
  */
 
-/** A profile's wall: posts, composer and "load older" (F-65, F-69). */
-export function Wall(_props: { ownerId: number; ownerFirstName: string; canView: boolean; canPost: boolean }) {
-  return null;
-}
+/** A profile's wall: posts, composer and "load older posts" (F-65–F-75). */
+export { Wall } from './components/Wall';

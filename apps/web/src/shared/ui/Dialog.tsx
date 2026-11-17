@@ -1,5 +1,5 @@
 import { useEffect, useId, useReducer, useRef } from 'react';
-import type { MouseEvent, PointerEvent, ReactNode, RefObject, SyntheticEvent } from 'react';
+import type { KeyboardEvent, MouseEvent, PointerEvent, ReactNode, RefObject, SyntheticEvent } from 'react';
 
 import { tokenList } from '../lib/token-list';
 import { Button } from './Button';
@@ -34,6 +34,10 @@ export interface DialogProps {
  * `open` is the single source of truth. Escape's `cancel` is prevented and reported as `onClose`, so the browser does
  * not close the dialog behind the caller's back. Where it closes anyway (a `cancel` the browser makes uncancelable,
  * `form method="dialog"`), the dialog reports it and shows itself again if the caller keeps `open`.
+ *
+ * A modal owns Escape: its keydown stops at the `<dialog>`, so a key handler of an ancestor (the header menu around
+ * the avatar dialog) never reacts to it or prevents the default that turns it into the dialog's `cancel`. Ancestors
+ * therefore need no knowledge of dialogs inside them.
  */
 export function Dialog({
   open,
@@ -96,6 +100,13 @@ export function Dialog({
     reportNativeClose();
   };
 
+  // Only the propagation stops; the default stays, so the browser still turns this Escape into `cancel`.
+  const keepEscapeInside = (event: KeyboardEvent<HTMLDialogElement>) => {
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+    }
+  };
+
   // The <dialog> has no padding, so its header and body fill the box: a press whose target is the <dialog> itself
   // landed on the backdrop.
   // Press and release must both be there: a text selection dragged out of the sheet must not close the dialog.
@@ -119,6 +130,7 @@ export function Dialog({
       aria-describedby={describedBy}
       onCancel={handleCancel}
       onClose={handleNativeClose}
+      onKeyDown={keepEscapeInside}
       onPointerDown={handlePointerDown}
       onClick={handleClick}
     >

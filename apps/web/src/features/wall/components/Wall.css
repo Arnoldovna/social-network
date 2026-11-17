@@ -1,0 +1,26 @@
+@reference "#styles/main.css";
+
+/*
+ * Wall: a lowercase section label with a muted rule below (maw section label), then the composer, the state of the
+ * posts and the list. Generous space between composer and posts, tight inside each part (maw §3 rhythm). The page
+ * that hosts the wall decides the space above it.
+ */
+@layer components {
+  .wall {
+    @apply flex flex-col gap-6;
+  }
+
+  .wall__title {
+    @apply m-0 pbe-2 text-caption font-medium;
+
+    border-block-end: var(--rule-width) solid var(--color-ink-muted);
+  }
+
+  .wall__locked {
+    @apply m-0 text-lead max-inline-prose;
+  }
+
+  .wall__body {
+    @apply flex flex-col gap-10;
+  }
+}

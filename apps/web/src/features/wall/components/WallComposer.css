@@ -1,0 +1,16 @@
+@reference "#styles/main.css";
+
+/* WallComposer: the labelled textarea at prose width, the "post" button below it, then a form-level error. */
+@layer components {
+  .wall-composer {
+    @apply flex flex-col items-start gap-4 max-inline-prose;
+  }
+
+  .wall-composer__field {
+    @apply inline-full;
+  }
+
+  .wall-composer__actions {
+    @apply flex flex-wrap items-center gap-4;
+  }
+}
