@@ -1,14 +1,16 @@
 // Public API of the friends feature (BUILD-ORDER "Module signatures fixed in Phase 1b"). The composition root imports
-// only from here. Phase 1b stub: the signature is final and `reader` is already the real one (ADR-0019 §3), so users
-// and wall get correct friendship answers however far the Phase 2 friends unit is. That unit fills the router and keeps
-// returning `reader: createFriendshipReader(deps.db)`.
-import { Router, type RequestHandler } from 'express';
+// only from here. `reader` is the Phase 1b `createFriendshipReader` (ADR-0019 §3), which users and wall receive.
+import type { RequestHandler, Router } from 'express';
 
 import type { Database } from '../../db/client.js';
 import type { AvatarUrl } from '../../shared/media/media-url.js';
 import type { FriendshipReader } from '../../shared/ports/friendship-reader.js';
 import type { RealtimePublisher } from '../../shared/realtime/types.js';
 import { createFriendshipReader } from './friendship-reader.js';
+import { createFriendsController } from './friends.controller.js';
+import { createFriendsRepository } from './friends.repository.js';
+import { createFriendsRouter } from './friends.routes.js';
+import { createFriendsService } from './friends.service.js';
 
 export interface FriendsModuleDeps {
   db: Database;
@@ -27,6 +29,17 @@ export interface FriendsModule {
   reader: FriendshipReader;
 }
 
+/** Construction only, no I/O, never throws: safe to call while the app is being composed (BUILD-ORDER rule 7). */
 export function createFriendsModule(deps: FriendsModuleDeps): FriendsModule {
-  return { router: Router(), reader: createFriendshipReader(deps.db) };
+  const service = createFriendsService({
+    repository: createFriendsRepository(deps.db),
+    publisher: deps.publisher,
+    avatarUrl: deps.avatarUrl,
+  });
+  const router = createFriendsRouter({
+    controller: createFriendsController(service),
+    requireAuth: deps.requireAuth,
+    writeLimiter: deps.writeLimiter,
+  });
+  return { router, reader: createFriendshipReader(deps.db) };
 }

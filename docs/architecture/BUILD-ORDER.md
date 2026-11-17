@@ -182,7 +182,7 @@ Module signatures fixed in Phase 1b (canonical; ADR-0008 and OVERVIEW follow the
 
 ```ts
 createAuthModule(d: { db; hasher; timingDummyHash; requireAuth; authLimiter; loginLimiters: LoginLimiters;
-  issueCsrfToken; sessionCookieName; publisher: RealtimePublisher }): { router: Router }
+  issueCsrfToken; sessionCookieName; publisher: RealtimePublisher; avatarUrl: AvatarUrl; logger: Logger }): { router: Router }
 createUsersModule(d: { db; requireAuth; friendships: FriendshipReader; avatarUrl: AvatarUrl;
   searchLimiter }): { router: Router }
 createAvatarsModule(d: { db; storage: ObjectStorage; requireAuth; uploadLimiter; maxUploadBytes: number;
@@ -191,7 +191,7 @@ createFriendsModule(d: { db; requireAuth; writeLimiter; publisher: RealtimePubli
   avatarUrl: AvatarUrl }): { router: Router; reader: FriendshipReader }
 createWallModule(d: { db; requireAuth; writeLimiter; friendships: FriendshipReader;
   publisher: RealtimePublisher; avatarUrl: AvatarUrl; joinLimiter: SocketEventLimiter;
-  sessionGuard: SessionGuard }): { router: Router; registerSocket: SocketRegistrar }
+  sessionGuard: SessionGuard; logger: Logger }): { router: Router; registerSocket: SocketRegistrar }
 createChatModule(d: { db; requireAuth; avatarUrl: AvatarUrl; chatLimiter: SocketEventLimiter;
   sessionGuard: SessionGuard; logger: Logger }): { router: Router; registerSocket: SocketRegistrar }
 createPresenceModule(d: { db; redis: RedisClient; keyPrefix: string; requireAuth; avatarUrl: AvatarUrl;
@@ -212,6 +212,10 @@ Chat broadcasts `chat:message` from its socket handler through the `io` passed t
 a room string by hand.
 
 The friends module is created first in `app.ts` so its `reader` can be passed to users and wall.
+
+Amended at Gate 2: auth receives the app's single `avatarUrl` (`Me.avatarUrl` in the register/login response)
+and a `logger` (a failed password-hash upgrade after a correct login is logged, never a 500, ADR-0006), and wall a
+`logger` (unexpected errors in `wall:join`/`wall:leave`), as avatars, chat and presence already do.
 
 #### Test helpers (`apps/api/test`, frozen after Phase 1b)
 

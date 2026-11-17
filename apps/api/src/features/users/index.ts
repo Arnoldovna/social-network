@@ -1,11 +1,14 @@
 // Public API of the users feature (BUILD-ORDER "Module signatures fixed in Phase 1b"). The composition root imports
-// only from here. Phase 1b stub: the signature is final, the Phase 2 users unit fills the body and keeps every exported
-// name and type.
-import { Router, type RequestHandler } from 'express';
+// only from here. The signature is frozen; the body wires repository -> service -> controller -> router.
+import type { Router, RequestHandler } from 'express';
 
 import type { Database } from '../../db/client.js';
 import type { AvatarUrl } from '../../shared/media/media-url.js';
 import type { FriendshipReader } from '../../shared/ports/friendship-reader.js';
+import { createUsersController } from './users.controller.js';
+import { createUsersRepository } from './users.repository.js';
+import { createUsersRouter } from './users.routes.js';
+import { createUsersService } from './users.service.js';
 
 export interface UsersModuleDeps {
   db: Database;
@@ -23,12 +26,15 @@ export interface UsersModule {
 }
 
 export function createUsersModule(deps: UsersModuleDeps): UsersModule {
-  const router = Router();
-  // Stub (BUILD-ORDER 1b, amended at Gate 1c): `GET /me` already answers a visitor with the contract's 401
-  // (API.md), so the web guards treat them as a visitor instead of rendering RouteErrorPage for a 404 (ADR-0013).
-  // Nobody can sign in before Phase 2, so a request with a session falls through to the 404 handler.
-  router.get('/me', deps.requireAuth, (_req, _res, next) => {
-    next();
+  const service = createUsersService({
+    repository: createUsersRepository(deps.db),
+    friendships: deps.friendships,
+    avatarUrl: deps.avatarUrl,
+  });
+  const router = createUsersRouter({
+    controller: createUsersController(service),
+    requireAuth: deps.requireAuth,
+    searchLimiter: deps.searchLimiter,
   });
   return { router };
 }

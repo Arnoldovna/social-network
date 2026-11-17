@@ -22,6 +22,16 @@ const origin = z.url({ protocol: /^https?$/, error: 'must be an http(s) URL' }).
 export const LogLevel = z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info');
 export const DatabaseUrl = z.url({ protocol: /^postgres(ql)?$/, error: 'must be a postgres:// or postgresql:// URL' });
 
+/** Object storage keys, shared with db/seed/cli.ts so the API and the seed accept exactly the same values. */
+export const S3EnvSchema = z.object({
+  S3_ENDPOINT: z.url({ protocol: /^https?$/, error: 'must be an http(s) URL' }).optional(), // MinIO; unset for AWS
+  S3_REGION: z.string().min(1).default('eu-central-1'),
+  S3_BUCKET: z.string().min(3, 'must be at least 3 characters'),
+  S3_ACCESS_KEY_ID: z.string().min(1),
+  S3_SECRET_ACCESS_KEY: z.string().min(1),
+  S3_FORCE_PATH_STYLE: z.stringbool().default(false),
+});
+
 /** Comma-separated list; blanks around entries are ignored. */
 const originList = z
   .string()
@@ -53,12 +63,7 @@ const EnvSchema = z.object({
   CSRF_SECRET: z.string().min(32, 'must be at least 32 characters'),
   CORS_ORIGINS: originList.default([]),
 
-  S3_ENDPOINT: z.url({ protocol: /^https?$/, error: 'must be an http(s) URL' }).optional(), // MinIO; unset for AWS
-  S3_REGION: z.string().min(1).default('eu-central-1'),
-  S3_BUCKET: z.string().min(3, 'must be at least 3 characters'),
-  S3_ACCESS_KEY_ID: z.string().min(1),
-  S3_SECRET_ACCESS_KEY: z.string().min(1),
-  S3_FORCE_PATH_STYLE: z.stringbool().default(false),
+  ...S3EnvSchema.shape,
   // Can only lower the avatar limit: the web client checks the shared AVATAR_MAX_BYTES before uploading and nginx
   // rejects bodies above 3 MB, so a larger value would never take effect (FEATURES Appendix C, ADR-0010).
   UPLOAD_MAX_BYTES: integer(1, AVATAR_MAX_BYTES, AVATAR_MAX_BYTES),

@@ -48,6 +48,14 @@ export function decodeCursor(raw: string): Cursor {
   }
 }
 
+/**
+ * The keyset position named by a request's optional cursor, ready to spread into a repository's page params: `{}` for
+ * the first page (no `after` key at all), `{ after }` otherwise. Throws 400 `invalid-cursor` like `decodeCursor`.
+ */
+export function pagePosition(cursor: string | undefined): { after?: Cursor } {
+  return cursor === undefined ? {} : { after: decodeCursor(cursor) };
+}
+
 /** Repositories fetch `limit + 1` rows; the extra row only signals that another page exists. */
 export function toPage<T extends Cursor>(rows: T[], limit: number): Page<T> {
   const items = rows.slice(0, limit);

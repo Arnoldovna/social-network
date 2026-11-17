@@ -1,7 +1,6 @@
 // Public API of the chat feature (BUILD-ORDER "Module signatures fixed in Phase 1b"). The composition root imports only
-// from here. Phase 1b stub: the signature is final, the Phase 2 chat unit fills the body and keeps every exported name
-// and type.
-import { Router, type RequestHandler } from 'express';
+// from here; the exported names and types are frozen.
+import type { RequestHandler, Router } from 'express';
 import type { Logger } from 'pino';
 
 import type { Database } from '../../db/client.js';
@@ -9,6 +8,11 @@ import type { AvatarUrl } from '../../shared/media/media-url.js';
 import type { SocketEventLimiter } from '../../shared/realtime/event-limiter.js';
 import type { SessionGuard } from '../../shared/realtime/session-guard.js';
 import type { SocketRegistrar } from '../../shared/realtime/types.js';
+import { createChatController } from './chat.controller.js';
+import { createChatRepository } from './chat.repository.js';
+import { createChatRouter } from './chat.routes.js';
+import { createChatService } from './chat.service.js';
+import { createChatSocketRegistrar } from './chat.socket.js';
 
 export interface ChatModuleDeps {
   db: Database;
@@ -28,6 +32,16 @@ export interface ChatModule {
   registerSocket: SocketRegistrar;
 }
 
-export function createChatModule(_deps: ChatModuleDeps): ChatModule {
-  return { router: Router(), registerSocket: () => undefined };
+/** Wiring only, no I/O: safe to call at app construction (BUILD-ORDER rule 7). */
+export function createChatModule(deps: ChatModuleDeps): ChatModule {
+  const service = createChatService({ repository: createChatRepository(deps.db), avatarUrl: deps.avatarUrl });
+  return {
+    router: createChatRouter({ controller: createChatController(service), requireAuth: deps.requireAuth }),
+    registerSocket: createChatSocketRegistrar({
+      service,
+      chatLimiter: deps.chatLimiter,
+      sessionGuard: deps.sessionGuard,
+      logger: deps.logger,
+    }),
+  };
 }

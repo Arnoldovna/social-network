@@ -1,5 +1,5 @@
 import { PROBLEM_TYPE_PREFIX, type Problem, type ProblemCode } from '@app/shared';
-import type { ErrorRequestHandler, Request, RequestHandler } from 'express';
+import type { ErrorRequestHandler, Request, RequestHandler, Response } from 'express';
 import multer from 'multer';
 
 import { AppError, NotFoundError } from '../errors/app-error.js';
@@ -132,6 +132,17 @@ function asError(error: unknown): Error {
 }
 
 /**
+ * A problem is never stored by any cache, whatever the failing handler had already set. The avatar route, for one,
+ * sets its `ETag` and an immutable one-year `Cache-Control` before it opens the object: without this, a 404 for a
+ * missing object or a 500 for a storage timeout would be cached as that URL's answer for a year.
+ */
+function preventCaching(res: Response): void {
+  res.removeHeader('ETag');
+  res.removeHeader('Last-Modified');
+  res.setHeader('Cache-Control', 'no-store');
+}
+
+/**
  * Must be registered last. Express 5 forwards rejected promises from async handlers here, so handlers never need
  * try/catch or an asyncHandler wrapper.
  *
@@ -150,5 +161,6 @@ export const errorHandler: ErrorRequestHandler = (error, req, res, next) => {
   const problem = toProblem(error, req);
   res.locals['problemType'] = problem.type;
   if (problem.status >= 500) res.err = asError(error);
+  preventCaching(res);
   res.status(problem.status).type('application/problem+json').json(problem);
 };

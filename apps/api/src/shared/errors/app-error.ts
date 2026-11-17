@@ -83,6 +83,16 @@ export class NotFoundError extends AppError {
   }
 }
 
+/**
+ * 404 `user-not-found` (F-42, B-55): a well-formed user id that belongs to nobody. Shared by users (profile), friends
+ * (request addressee) and wall (wall owner), so the three answer with one identical problem.
+ */
+export class UserNotFoundError extends AppError {
+  constructor() {
+    super({ status: 404, code: 'user-not-found', title: 'Not found', detail: 'This user does not exist.' });
+  }
+}
+
 /** No default code: the service that maps a conflict knows its meaning (`email-taken`, `friendship-exists`). */
 export class ConflictError extends AppError {
   constructor(detail: string, code: ProblemCode) {

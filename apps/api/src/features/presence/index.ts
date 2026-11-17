@@ -1,13 +1,18 @@
 // Public API of the presence feature (BUILD-ORDER "Module signatures fixed in Phase 1b"). The composition root imports
-// only from here. Phase 1b stub: the signature is final, the Phase 2 presence unit fills the body and keeps every
-// exported name and type.
-import { Router, type RequestHandler } from 'express';
+// only from here (enforced by eslint-plugin-boundaries).
+import type { RequestHandler, Router } from 'express';
 import type { Logger } from 'pino';
 
 import type { Database } from '../../db/client.js';
 import type { AvatarUrl } from '../../shared/media/media-url.js';
 import type { RedisClient } from '../../shared/redis/redis.js';
 import type { SocketRegistrar } from '../../shared/realtime/types.js';
+import { createPresenceController } from './presence.controller.js';
+import { createPresenceRepository } from './presence.repository.js';
+import { createPresenceRouter } from './presence.routes.js';
+import { createPresenceService } from './presence.service.js';
+import { createPresenceSocket } from './presence.socket.js';
+import { createRedisPresenceStore } from './presence.store.js';
 
 export interface PresenceModuleDeps {
   db: Database;
@@ -32,6 +37,19 @@ export interface PresenceModule {
   onBoot(): Promise<void>;
 }
 
-export function createPresenceModule(_deps: PresenceModuleDeps): PresenceModule {
-  return { router: Router(), registerSocket: () => undefined, onBoot: () => Promise.resolve() };
+/** Construction only, no I/O: Redis is first touched by `onBoot()` and by the first socket. */
+export function createPresenceModule(deps: PresenceModuleDeps): PresenceModule {
+  const service = createPresenceService({
+    store: createRedisPresenceStore({ redis: deps.redis, keyPrefix: deps.keyPrefix }),
+    repository: createPresenceRepository(deps.db),
+    avatarUrl: deps.avatarUrl,
+    graceMs: deps.graceMs,
+    logger: deps.logger,
+  });
+  const router = createPresenceRouter({
+    controller: createPresenceController(service),
+    requireAuth: deps.requireAuth,
+  });
+  const registerSocket = createPresenceSocket({ service, instanceId: deps.instanceId, logger: deps.logger });
+  return { router, registerSocket, onBoot: () => service.reset() };
 }

@@ -164,6 +164,8 @@ export function createApp(deps: AppDeps): AppInstance {
     issueCsrfToken: freshTokenIssuer(csrf),
     sessionCookieName: sessionCookieName(secure),
     publisher,
+    avatarUrl,
+    logger: logger.child({ feature: 'auth' }),
   });
   const usersModule = createUsersModule({
     db,
@@ -190,6 +192,7 @@ export function createApp(deps: AppDeps): AppInstance {
     avatarUrl,
     joinLimiter: socketLimiters.wallJoin,
     sessionGuard,
+    logger: logger.child({ feature: 'wall' }),
   });
   const chat = createChatModule({
     db,

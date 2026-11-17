@@ -14,7 +14,8 @@ brute-force protection (B-15). FEATURES F-09 proposes 8–128 characters; the ho
 
 - Length **12–256**, no composition rules, no trimming of passwords, checked by the shared `Password` schema on both
   sides. The UI hint says "At least 12 characters." (NIST SP 800-63B favours length over composition.)
-- argon2 0.45.2, argon2id, pinned `m=65536, t=3, p=4`; `needsRehash` on successful login stores an upgraded hash.
+- argon2 0.45.2, argon2id, pinned `m=65536, t=3, p=4`; `needsRehash` on successful login stores an upgraded hash,
+  best effort: a failed upgrade is logged as a warning and the login still succeeds (the old hash keeps working).
 - Login: one query `select id, password_hash where lower(email) = $1`; when no row exists, verify against a
   precomputed dummy hash (created once in `container.ts`), then return the same 401 `invalid-credentials`
   "Email or password is incorrect." (F-15).

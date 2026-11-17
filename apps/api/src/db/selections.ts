@@ -1,4 +1,5 @@
 import type { PublicUser, UserSummary } from '@app/shared';
+import { asc, sql, type SQL } from 'drizzle-orm';
 
 import type { AvatarUrl } from '../shared/media/media-url.js';
 import { users } from './schema/index.js';
@@ -23,6 +24,14 @@ export const publicUserColumns = {
   ...userSummaryColumns,
   bio: users.bio,
 } as const;
+
+/**
+ * The order of every list of users (search, friends, presence; DATA-MODEL.md): case-insensitive first name, then last
+ * name, then the id as a stable tie-breaker. Use as `.orderBy(...userNameOrder())`.
+ */
+export function userNameOrder(): SQL[] {
+  return [asc(sql`lower(${users.firstName})`), asc(sql`lower(${users.lastName})`), asc(users.id)];
+}
 
 type UserRow = typeof users.$inferSelect;
 

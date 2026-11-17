@@ -13,7 +13,9 @@ ascending in SQL then reversed in JavaScript (B-72).
 
 - Template helpers from `shared/pagination/cursor.ts`: order `created_at DESC, id DESC`, row comparison
   `(created_at, id) < ($t, $id)`, fetch `limit + 1`, cursor = base64url JSON `{ t, id }` validated on decode
-  (400 `invalid-cursor`).
+  (400 `invalid-cursor`). The row comparison is SQL, so it is built once by `keysetAfter()` in `db/keyset.ts`
+  (`shared/` never touches the database), with both values bound as `::timestamptz` and `::integer` (amended at
+  Gate 2).
 - **The cursor columns are `timestamptz(3)`** (`timestamp('created_at', { withTimezone: true, precision: 3 })`).
   The cursor encodes `Date.toISOString()` (milliseconds); a default `timestamptz` stores microseconds, so `$t` would
   be truncated and every row in the same millisecond as a page's last row but older than it would be skipped
