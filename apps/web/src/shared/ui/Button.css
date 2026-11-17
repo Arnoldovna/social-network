@@ -1,0 +1,59 @@
+@reference "#styles/main.css";
+
+/*
+ * Button: pattern A (text + underline) is the block, pattern B (outlined rectangle) and the accent field are
+ * modifiers (maw-design-system §6). The text variant inherits its colour, so it stays black on an accent field and
+ * ink on paper in both themes (§4). No radius, no shadow, lowercase labels come from the copy.
+ */
+@layer components {
+  .button {
+    @apply inline-flex items-center gap-2 p-0 min-block-6 text-body font-sans font-regular underline cursor-pointer;
+
+    color: inherit;
+    background: none;
+    border: 0;
+    border-radius: 0;
+    text-decoration-thickness: var(--rule-width);
+    text-underline-offset: var(--underline-offset);
+
+    @variant hover {
+      &:enabled {
+        text-decoration-thickness: var(--rule-width-strong);
+      }
+    }
+
+    &:disabled {
+      @apply text-ink-muted cursor-not-allowed;
+    }
+  }
+
+  .button--outlined {
+    @apply pbs-3 pbe-3 ps-6 pe-6 text-ink bg-paper no-underline;
+
+    border: var(--rule-width) solid var(--color-ink);
+
+    @variant hover {
+      &:enabled {
+        @apply bg-ink text-paper;
+      }
+    }
+
+    &:disabled {
+      border-color: var(--color-ink-muted);
+    }
+  }
+
+  /* Accent field: ink text and border on rose; never white text on an accent (§4). */
+  .button--accent {
+    @apply bg-accent text-on-accent;
+
+    border-color: var(--color-on-accent);
+
+    /* Disabled falls back to the outlined look: muted text on paper reads as "not available" in both themes. */
+    &:disabled {
+      @apply bg-paper text-ink-muted;
+
+      border-color: var(--color-ink-muted);
+    }
+  }
+}

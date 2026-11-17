@@ -1,0 +1,56 @@
+@reference "#styles/main.css";
+
+/*
+ * Visitor area (F-95, ADR-0015): one column below 1024 px (wordmark and brand panel, then the form), two equal columns
+ * from 1024 px. The brand panel's rose field is the feature's own block; this file only places it. Gutters follow the
+ * page shell (12 px, 20 px from 640 px).
+ */
+@layer components {
+  .welcome-layout {
+    @apply flex flex-col mx-auto max-inline-page min-block-dvh;
+
+    @variant lg {
+      @apply grid items-start gap-x-12;
+
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  .welcome-layout__header {
+    @apply flex flex-col items-start gap-8 pbs-8 ps-3 pe-3;
+
+    @variant sm {
+      @apply pbs-12 ps-5 pe-5;
+    }
+
+    @variant lg {
+      @apply sticky inset-bs-0 pbe-12;
+    }
+  }
+
+  .welcome-layout__wordmark {
+    @apply text-title-l font-medium text-ink no-underline;
+
+    @variant md {
+      @apply text-display;
+    }
+
+    @variant hover {
+      @variant motion-safe {
+        @apply animate-shake;
+      }
+    }
+  }
+
+  .welcome-layout__main {
+    @apply flex-1 ps-3 pe-3 pbs-12 pbe-16;
+
+    @variant sm {
+      @apply ps-5 pe-5 pbe-24;
+    }
+
+    @variant lg {
+      @apply pbs-32;
+    }
+  }
+}

@@ -1,0 +1,33 @@
+@reference "#styles/main.css";
+
+/*
+ * Connection banner (F-107): a flat rose field above the page, black text on it (maw-design-system §4: never muted
+ * or white text on an accent). It sits in the document flow instead of floating, so it never covers the content, the
+ * chat composer or a toast; the live region has no height while it is empty. It fades in under motion-safe only.
+ */
+@layer components {
+  /* The live region: a plain block in the flow, so its height is exactly that of the bar (zero while empty). */
+  .connection-banner {
+    @apply block;
+  }
+
+  .connection-banner__bar {
+    @apply bg-accent text-on-accent;
+
+    @variant motion-safe {
+      @apply animate-fade-in;
+    }
+  }
+
+  .connection-banner__message {
+    @apply flex flex-wrap items-baseline gap-x-3 gap-y-1 m-0 mx-auto max-inline-page ps-3 pe-3 pbs-2 pbe-2 text-meta;
+
+    @variant sm {
+      @apply ps-5 pe-5;
+    }
+  }
+
+  .connection-banner__title {
+    @apply font-medium;
+  }
+}

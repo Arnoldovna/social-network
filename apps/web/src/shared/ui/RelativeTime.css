@@ -1,0 +1,9 @@
+@reference "#styles/main.css";
+
+/* RelativeTime: inherits size and colour from the meta line it sits in; never breaks inside "5 minutes ago". */
+@layer components {
+  .relative-time {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+}

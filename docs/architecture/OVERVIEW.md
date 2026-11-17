@@ -244,11 +244,11 @@ social-network/
 │   │       │   ├── api/{baseApi,baseQuery,csrf,problem,me.api}.ts
 │   │       │   ├── realtime/{socket,realtimeSlice}.ts
 │   │       │   ├── session/{session-events,use-current-user}.ts
-│   │       │   ├── lib/{format-date,names,use-debounced-value,use-confirm}.ts
+│   │       │   ├── lib/{format-date,names,token-list,use-debounced-value,use-confirm}.ts
 │   │       │   ├── ui/{Button,TextField,TextArea,FieldError,Dialog,ConfirmDialog,Avatar,UserRow,RelativeTime,
 │   │       │   │       LoadingState,ErrorState,EmptyState,Toast}.tsx (+ one .css each)
 │   │       │   ├── ui/{SkipLink,VisuallyHidden}.tsx  (no own CSS: `.skip-link`/`.visually-hidden` live in utilities.css)
-│   │       │   └── test/{setup,render,msw}.ts(x)   setup.ts from 1a (vitest setupFiles); MSW onUnhandledRequest: 'error'
+│   │       │   └── test/{setup,render,msw}.ts(x)   setup.ts from 1a (vitest setupFiles); MSW onUnhandledFrame: 'error'
 │   │       ├── styles/{main,tokens,base,utilities}.css
 │   │       └── features/
 │   │           ├── auth/{auth.api.ts, index.ts}
@@ -362,7 +362,7 @@ store**; plain slices only for client state.
 
 | State               | Where                                                                                                                               | Notes                                                                                                                                                                                                                                                                       |
 | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Current user        | `shared/api/me.api.ts` → `getMe` (tag `Me`), `selectIsAuthenticated`                                                                | used by loaders, header, wall/chat ownership checks via `useCurrentUser()`; login/register write the returned user into this cache                                                                                                                                          |
+| Current user        | `shared/api/me.api.ts` → `getMe` (tag `Me`), `selectIsAuthenticated`                                                                | used by loaders, header, wall/chat ownership checks via `useCurrentUser()`; the cache holds the `MeResponse` envelope `{ user }`: login/register upsert `{ user: res.user }`, `updateMe` and the avatar upload upsert their response as is                                  |
 | Profiles            | `profile.api.ts` → `getUser(id)` (tag `User`, id), `updateMe` (invalidates `Me`, `User` self)                                       | cache keyed per id, so switching profiles never shows the previous user (B-91)                                                                                                                                                                                              |
 | Friendships         | `friends.api.ts` → `getFriendships` (tag `Friendships`), `sendRequest`, `accept`, `remove` (invalidate `Friendships` and `User` id) | one source of truth for the friend button and the friends page (B-92); refetchOnMountOrArgChange (F-57)                                                                                                                                                                     |
 | Search              | `search.api.ts` → `searchUsers({ q, limit })`                                                                                       | `keepUnusedDataFor: 30`; debounced input 300 ms                                                                                                                                                                                                                             |
@@ -381,9 +381,10 @@ token from login/register, **cleared on logout and on `sessionExpired`** because
 `{ status, code, title, detail, errors }`, (4) on 401 dispatch `sessionExpired` only if **both** hold when the 401
 arrives:
 
-- the endpoint is not `/me`, `/csrf-token` or `/auth/*` (a 401 from `/me` is how loaders recognise a visitor), and
-- `selectIsAuthenticated(state)` is true, i.e. the `getMe` cache holds a user (login/register write the returned
-  user into it with `upsertQueryData`; logout and `sessionExpired` reset it).
+- the request is not `GET /me`, `/csrf-token` or `/auth/*` (a 401 from `GET /me` is how loaders recognise a visitor;
+  a 401 on `PATCH /me` from a signed-in user is a real expiry), and
+- `selectIsAuthenticated(state)` is true, i.e. the `getMe` cache holds a user (login/register upsert the
+  `MeResponse` envelope `{ user: res.user }`; logout and `sessionExpired` reset it).
 
 So a visitor never triggers it, and a logged-in user triggers it exactly once: the listener resets the API state
 first, which makes every later 401 (in-flight requests, the welcome loader's own `getMe`) a visitor 401. Socket

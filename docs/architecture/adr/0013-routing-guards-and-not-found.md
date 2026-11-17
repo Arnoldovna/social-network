@@ -15,19 +15,24 @@ Legacy routing mixed `HashRouter` (welcome, nested about router) and `BrowserRou
 - React Router 8.5.1 in data mode: `createBrowserRouter` + `RouterProvider`, defined in `app/router.tsx`:
 
 ```
-/                      RootLayout (SkipLink, ConnectionBanner, errorElement: RouteErrorPage)
-├─ /welcome            WelcomeLayout   loader: redirectIfAuthenticated → redirect('/') (F-02)
-│  ├─ index            RegisterPage    title "Sign up · Let's chat!"
-│  ├─ login            LoginPage       title "Log in · Let's chat!"  (?reason=expired shows the F-22 message)
-│  └─ about            AboutPage       title "About · Let's chat!"
-├─ (pathless)          AppLayout       loader: requireUser → redirect('/welcome') on 401 (F-01)
-│  ├─ index            OwnProfilePage  title "<First Last> · Let's chat!"
-│  ├─ users/:id        UserProfilePage loader: id === me → redirect('/') (F-41)
-│  ├─ friends          FriendsPage
-│  ├─ online           OnlinePage
-│  └─ chat             ChatPage        title "Chat · Let's chat!"
-└─ *                   NotFoundPage    "Page not found" + link to "/" (F-04)
+/                      RootLayout (SkipLink, ConnectionBanner; errorElement: RouteErrorPage for a RootLayout crash)
+└─ (pathless)          errorElement: RouteErrorPage (loader errors, page crashes; rendered inside RootLayout)
+   ├─ /welcome         WelcomeLayout   loader: redirectIfAuthenticated → redirect('/') (F-02)
+   │  ├─ index         RegisterPage    title "Sign up · Let's chat!"
+   │  ├─ login         LoginPage       title "Log in · Let's chat!"  (?reason=expired shows the F-22 message)
+   │  └─ about         AboutPage       title "About · Let's chat!"
+   ├─ (pathless)       AppLayout       loader: requireUser → redirect('/welcome') on 401 (F-01)
+   │  ├─ index         OwnProfilePage  title "<First Last> · Let's chat!"
+   │  ├─ users/:id     UserProfilePage loader: id === me → redirect('/') (F-41)
+   │  ├─ friends       FriendsPage
+   │  ├─ online        OnlinePage
+   │  └─ chat          ChatPage        title "Chat · Let's chat!"
+   └─ *                NotFoundPage    "Page not found" + link to "/" (F-04)
 ```
+
+- The error boundary sits on a pathless child of RootLayout (amended at Gate 1c), not on the root route itself: an
+  `errorElement` replaces its route's element, so on the root it would drop the skip link (F-103) and the
+  "Reconnecting…" banner (F-107) from the error page. The root keeps one only as the last resort for RootLayout.
 
 - Loaders use the store: `await store.dispatch(meApi.endpoints.getMe.initiate()).unwrap()`; the result stays cached,
   so pages read it with `useCurrentUser()`. A 401 from `getMe` means "visitor" and is handled **silently**:
@@ -41,7 +46,8 @@ Legacy routing mixed `HashRouter` (welcome, nested about router) and `BrowserRou
 - Document titles with React 19's `<title>` element rendered by each page (F-05).
 - `UserProfilePage` renders the friend button and wall only after the profile loaded successfully; 400/404 render
   "This user does not exist." (F-42, B-98).
-- Focus management: on route change, focus moves to the page `<h1>` (one per page, F-103).
+- Focus management: on route change, focus moves to the page `<h1>` (one per page, F-103); so it does after a
+  revalidation ("try again" on `RouteErrorPage`) that removed the focused element.
 - nginx: `try_files $uri $uri/ /index.html` for navigations, `/api/` and `/socket.io/` proxied, so unknown API paths
   reach Express' 404 problem handler.
 

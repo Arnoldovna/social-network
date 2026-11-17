@@ -1,0 +1,126 @@
+@reference "#styles/main.css";
+
+/*
+ * Site header (maw-design-system §6 "Site header", ADR-0015). It never fits one row (wordmark, search, avatar,
+ * "log out" and four links need about 1,050 px), so:
+ * - below 640 px: wordmark, avatar button and "menu" in one row; the panel (search, "log out", navigation) opens
+ *   underneath as a column;
+ * - from 640 px: the panel dissolves into the header grid (`display: contents`): row 1 holds wordmark, avatar,
+ *   search and "log out", row 2 the navigation above a 1px rule. The header is sticky, solid paper, and fades into
+ *   the page below with `--header-fade` (the only gradient maw allows).
+ * The grid areas follow the DOM order, so what is seen is also the focus order.
+ */
+@layer components {
+  .site-header {
+    @apply grid items-center gap-x-4 gap-y-3 pbs-6 pbe-3 ps-3 pe-3 bg-paper;
+
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      'brand avatar menu'
+      'panel panel panel';
+
+    @variant sm {
+      @apply sticky inset-bs-0 gap-x-6 pbs-8 pbe-0 ps-5 pe-5;
+
+      z-index: var(--layer-header);
+      grid-template-columns: minmax(0, 1fr) auto auto auto;
+      grid-template-areas:
+        'brand avatar search logout'
+        'nav nav nav nav';
+    }
+  }
+
+  /* The fade sits below the solid header, so content never shows through the navigation row. */
+  .site-header::after {
+    @variant sm {
+      @apply absolute inline-full block-6;
+
+      content: '';
+      inset-block-start: 100%;
+      inset-inline-start: 0;
+      pointer-events: none;
+      background-image: var(--header-fade);
+    }
+  }
+
+  .site-header__brand {
+    @apply text-title font-medium text-ink no-underline justify-self-start;
+
+    grid-area: brand;
+
+    @variant md {
+      @apply text-title-l;
+    }
+
+    @variant lg {
+      @apply text-display;
+    }
+
+    @variant hover {
+      @variant motion-safe {
+        @apply animate-shake;
+      }
+    }
+  }
+
+  .site-header__avatar {
+    @apply flex items-center;
+
+    grid-area: avatar;
+  }
+
+  .site-header__menu {
+    @apply flex items-center text-lead;
+
+    grid-area: menu;
+
+    @variant sm {
+      @apply hidden;
+    }
+  }
+
+  /* Closed below 640 px; from 640 px its children are cells of the header grid. */
+  .site-header__panel {
+    @apply hidden;
+
+    grid-area: panel;
+
+    @variant sm {
+      @apply contents;
+    }
+  }
+
+  .site-header__panel--open {
+    @apply flex flex-col gap-6 pbs-6 pbe-6 border-bs border-rule;
+
+    @variant sm {
+      @apply contents;
+    }
+  }
+
+  .site-header__search {
+    @apply min-inline-0;
+
+    @variant sm {
+      grid-area: search;
+    }
+  }
+
+  .site-header__logout {
+    @apply flex items-center text-lead;
+
+    @variant sm {
+      @apply text-body;
+
+      grid-area: logout;
+    }
+  }
+
+  .site-header__nav {
+    @variant sm {
+      @apply pbs-2 pbe-3 border-be border-rule;
+
+      grid-area: nav;
+    }
+  }
+}

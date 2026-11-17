@@ -49,9 +49,16 @@
     opacity: 1;
   }
 
-  /* Focus is never removed (F-102, B-106, B-123): 2px ink outline, 4px offset, visible on paper and every accent. */
+  /*
+   * Focus is never removed (F-102, B-106, B-123): 2px ring, 4px offset. The ring is ink, which is visible on paper in
+   * both themes and on every accent in light mode. In dark mode ink turns white, which fails 3:1 on the rose accent
+   * (2.28:1) and on sky, sand, blush and apricot. An accent field block therefore sets
+   * `--focus-color: var(--color-on-accent)` on itself, so its focusable descendants keep a black ring on the fill
+   * (WCAG 1.4.11). A focusable element that IS the accent fill (primary button) must not set it: its ring is drawn
+   * outside, on paper.
+   */
   :focus-visible {
-    outline: var(--focus-width) solid var(--color-ink);
+    outline: var(--focus-width) solid var(--focus-color, var(--color-ink));
     outline-offset: var(--focus-offset);
   }
 

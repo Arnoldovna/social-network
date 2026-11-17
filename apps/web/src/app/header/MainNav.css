@@ -1,0 +1,44 @@
+@reference "#styles/main.css";
+
+/*
+ * Main navigation: lowercase text links at `text-lead` (ADR-0015, B-130), a column inside the mobile "menu" panel and
+ * one wrapping row from 640 px. The current page is a 2px ink underline, never colour alone (maw-design-system §4,
+ * F-93); hover shakes the link under motion-safe only.
+ */
+@layer components {
+  /* The header grid places the navigation; inside it, the block only needs to take the full row. */
+  .main-nav {
+    @apply block min-inline-0;
+  }
+
+  .main-nav__list {
+    @apply flex flex-col gap-4 m-0 p-0;
+
+    list-style: none;
+
+    @variant sm {
+      @apply flex-row flex-wrap gap-x-6 gap-y-2;
+    }
+  }
+
+  .main-nav__item {
+    @apply flex items-baseline gap-2;
+  }
+
+  .main-nav__link {
+    @apply text-lead font-medium text-ink no-underline;
+
+    text-decoration-thickness: var(--rule-width-strong);
+    text-underline-offset: var(--underline-offset);
+
+    &[aria-current='page'] {
+      @apply underline;
+    }
+
+    @variant hover {
+      @variant motion-safe {
+        @apply animate-shake;
+      }
+    }
+  }
+}

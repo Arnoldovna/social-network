@@ -22,6 +22,13 @@ export interface UsersModule {
   router: Router;
 }
 
-export function createUsersModule(_deps: UsersModuleDeps): UsersModule {
-  return { router: Router() };
+export function createUsersModule(deps: UsersModuleDeps): UsersModule {
+  const router = Router();
+  // Stub (BUILD-ORDER 1b, amended at Gate 1c): `GET /me` already answers a visitor with the contract's 401
+  // (API.md), so the web guards treat them as a visitor instead of rendering RouteErrorPage for a 404 (ADR-0013).
+  // Nobody can sign in before Phase 2, so a request with a session falls through to the 404 handler.
+  router.get('/me', deps.requireAuth, (_req, _res, next) => {
+    next();
+  });
+  return { router };
 }

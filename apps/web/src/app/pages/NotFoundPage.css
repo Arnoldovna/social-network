@@ -1,0 +1,63 @@
+@reference "#styles/main.css";
+
+/*
+ * Not-found page (F-04): the page shell with the wordmark, then a left-aligned empty-state composition
+ * (maw-design-system §6 "Empty state"): a large sentence, one muted line, one text link. No illustration, no centring.
+ */
+@layer components {
+  .not-found-page {
+    @apply flex flex-col mx-auto max-inline-page min-block-dvh;
+  }
+
+  .not-found-page__header {
+    @apply pbs-8 pbe-6 ps-3 pe-3;
+
+    @variant sm {
+      @apply pbs-12 ps-5 pe-5;
+    }
+  }
+
+  .not-found-page__wordmark {
+    @apply text-title font-medium text-ink no-underline;
+
+    @variant md {
+      @apply text-title-l;
+    }
+
+    @variant lg {
+      @apply text-display;
+    }
+
+    @variant hover {
+      @variant motion-safe {
+        @apply animate-shake;
+      }
+    }
+  }
+
+  .not-found-page__main {
+    @apply flex flex-1 flex-col items-start gap-4 ps-3 pe-3 pbs-16 pbe-24;
+
+    @variant sm {
+      @apply ps-5 pe-5 pbs-24;
+    }
+  }
+
+  .not-found-page__title {
+    @apply m-0 text-title-l font-regular;
+  }
+
+  .not-found-page__text {
+    @apply m-0 mbe-4 text-body text-ink-muted max-inline-prose;
+  }
+
+  .not-found-page__link {
+    @apply text-body text-ink;
+
+    text-decoration-thickness: var(--rule-width);
+
+    @variant hover {
+      text-decoration-thickness: var(--rule-width-strong);
+    }
+  }
+}

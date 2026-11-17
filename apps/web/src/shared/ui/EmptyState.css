@@ -1,0 +1,22 @@
+@reference "#styles/main.css";
+
+/* EmptyState: maw components §12; the large size from the `row` container width on. */
+@layer components {
+  .empty-state {
+    @apply flex flex-col items-start gap-4 pbs-12 pbe-12;
+
+    container-type: inline-size;
+  }
+
+  .empty-state__title {
+    @apply m-0 text-title-s font-regular;
+
+    @variant @row {
+      @apply text-title-l;
+    }
+  }
+
+  .empty-state__text {
+    @apply m-0 text-body text-ink-muted max-inline-prose;
+  }
+}

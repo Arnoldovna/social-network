@@ -1,0 +1,39 @@
+@reference "#styles/main.css";
+
+/*
+ * Dialog: maw modal (maw-design-system §6, components §8). Sheet with a 1px ink border, no radius, no shadow, no
+ * blur; title left and "close" right; backdrop is flat paper at 92%, never dark glass. The sheet keeps a gutter of
+ * 12px on each side on small screens and stops at the `wide` container.
+ */
+@layer components {
+  /* Preflight sets `margin: 0` on every element; `m-auto` restores the UA centring of a modal <dialog>. */
+  .dialog {
+    @apply m-auto p-0 bg-paper text-ink inline-full;
+
+    max-inline-size: min(var(--container-wide), 100% - --spacing(6));
+    border: var(--rule-width) solid var(--color-ink);
+    border-radius: 0;
+
+    &::backdrop {
+      background-color: --alpha(var(--color-paper) / 92%);
+    }
+
+    &[open] {
+      @variant motion-safe {
+        @apply animate-fade-in;
+      }
+    }
+  }
+
+  .dialog__header {
+    @apply flex items-baseline justify-between gap-6 p-5 border-be border-rule;
+  }
+
+  .dialog__title {
+    @apply m-0 text-title-s;
+  }
+
+  .dialog__body {
+    @apply p-5;
+  }
+}

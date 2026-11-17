@@ -61,7 +61,7 @@ phase in one tree (conventions §4), one unit's half-written file can turn every
 - A test that renders another feature's public component mocks that feature's `index.ts` with `vi.mock(...)` and a
   trivial stand-in (profile → wall, friends, avatars; the Phase 1c `MainNav.test.tsx` → friends). Without this, the
   test would issue the sibling's real requests the moment the sibling swaps its `index.ts`, and the MSW server
-  (`onUnhandledRequest: 'error'`) would fail it.
+  (`onUnhandledFrame: 'error'`) would fail it.
 - A failure caused by a sibling's file is reported to the orchestrator, never fixed by the unit.
 - "Frozen" (conventions §4) means every Phase 1 file except those a later unit's file list names explicitly (feature
   `index.ts` stubs, stub components, the seed stubs). Sequential steps between waves are orchestrator-only.

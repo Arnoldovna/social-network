@@ -1,0 +1,43 @@
+@reference "#styles/main.css";
+
+/*
+ * Toast: bottom left (inline-start / block-end) on the page gutter, paper with a 1px ink border, the sentence and a
+ * "dismiss" text button (maw-design-system §14). The error tone adds the 2px error rule on the inline-start side;
+ * the sentence itself says what went wrong, so colour is never the only signal.
+ */
+@layer components {
+  .toast-region {
+    @apply fixed;
+
+    inset-block-end: --spacing(3);
+    inset-inline-start: --spacing(3);
+    z-index: var(--layer-toast);
+    max-inline-size: min(var(--container-row), 100% - --spacing(6));
+
+    @variant sm {
+      inset-block-end: --spacing(5);
+      inset-inline-start: --spacing(5);
+      max-inline-size: min(var(--container-row), 100% - --spacing(10));
+    }
+  }
+
+  .toast {
+    @apply flex items-baseline justify-between gap-6 ps-4 pe-4 pbs-3 pbe-3 bg-paper text-ink text-body;
+
+    border: var(--rule-width) solid var(--color-ink);
+
+    @variant motion-safe {
+      @apply animate-fade-in;
+    }
+  }
+
+  .toast--error {
+    border-inline-start: var(--rule-width-strong) solid var(--color-error);
+  }
+
+  .toast__message {
+    @apply m-0 min-inline-0;
+
+    overflow-wrap: anywhere;
+  }
+}

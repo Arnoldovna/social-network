@@ -1,0 +1,51 @@
+@reference "#styles/main.css";
+
+/*
+ * Avatar: a square with fixed sizes from the spacing scale (ADR-0015, B-125: no viewport units), no radius, no
+ * ring. The image covers the square on a surface placeholder; the fallback is the initials in ink on the rose
+ * field (on-accent never swaps, so it stays black in dark mode, maw-design-system §4).
+ */
+@layer components {
+  .avatar {
+    @apply inline-block shrink-0 overflow-hidden bg-surface;
+
+    aspect-ratio: 1;
+    vertical-align: middle;
+  }
+
+  .avatar--small {
+    @apply size-10;
+  }
+
+  .avatar--medium {
+    @apply size-16;
+  }
+
+  .avatar--large {
+    @apply size-32;
+  }
+
+  .avatar__image {
+    @apply block size-full;
+
+    object-fit: cover;
+  }
+
+  .avatar__initials {
+    @apply flex size-full items-center justify-center bg-accent text-on-accent font-medium leading-none;
+
+    user-select: none;
+
+    .avatar--small & {
+      @apply text-meta;
+    }
+
+    .avatar--medium & {
+      @apply text-lead;
+    }
+
+    .avatar--large & {
+      @apply text-title-l;
+    }
+  }
+}

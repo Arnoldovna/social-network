@@ -1,0 +1,12 @@
+@reference "#styles/main.css";
+
+/* LoadingState: muted meta text, left-aligned; it fades in so fast responses do not flash (motion-safe only). */
+@layer components {
+  .loading-state {
+    @apply m-0 pbs-6 pbe-6 text-meta text-ink-muted;
+
+    @variant motion-safe {
+      @apply animate-fade-in;
+    }
+  }
+}

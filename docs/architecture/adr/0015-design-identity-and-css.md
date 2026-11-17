@@ -23,6 +23,11 @@ and the Tailwind 4 rules.
   `@reference "#styles/main.css"`, `@layer components`, logical properties, container queries for components,
   `motion-safe` for all motion, global `:focus-visible` (2px ink, offset 4px). No utility classes in markup
   (`scripts/check-no-utilities.mjs`), stylelint config from the skill.
+- **Focus ring inside accent fields.** The global ring is `var(--focus-color, var(--color-ink))` (`base.css`). Ink is
+  white in dark mode, which is below 3:1 on rose and the other light accents (WCAG 1.4.11). Every accent-field block
+  that contains focusable elements (the brand panel, any rose field with links or buttons) therefore sets
+  `--focus-color: var(--color-on-accent)` on the field block itself. An element that is itself the accent fill (the
+  primary button) does not set it, because its ring is drawn outside, on paper.
 - Rose (`#E59797`) is < 3:1 on paper: it appears only as **flat fields** with black text (`on-accent`), e.g. the
   brand panel on the welcome page, the friend-request badge field, the primary button (at most once per view), the
   default avatar field. Current page and selection are always also marked in ink (2px underline, `aria-current`).

@@ -1,0 +1,44 @@
+@reference "#styles/main.css";
+
+/*
+ * TextField: label above (meta, muted), underline-only input, hint below (maw-design-system §7).
+ * The underline is ink-muted (6.29:1, a UI boundary per WCAG 1.4.11), 2px ink on focus, 2px error when invalid.
+ * The thicker line takes its extra pixel from the padding, so focus never shifts the layout.
+ */
+@layer components {
+  .text-field {
+    @apply flex flex-col gap-2 max-inline-prose;
+  }
+
+  .text-field__label {
+    @apply text-meta text-ink-muted;
+  }
+
+  .text-field__input {
+    @apply inline-full min-inline-0 m-0 pbs-2 pbe-2 ps-0 pe-0 text-lead text-ink bg-paper font-sans font-regular;
+
+    appearance: none;
+    border: 0;
+    border-block-end: var(--rule-width) solid var(--color-ink-muted);
+    border-radius: 0;
+
+    &[aria-invalid='true'] {
+      padding-block-end: calc(--spacing(2) - var(--rule-width));
+      border-block-end: var(--rule-width-strong) solid var(--color-error);
+    }
+
+    &:focus-visible {
+      outline: none;
+      padding-block-end: calc(--spacing(2) - var(--rule-width));
+      border-block-end: var(--rule-width-strong) solid var(--color-ink);
+    }
+
+    &:disabled {
+      @apply text-ink-muted cursor-not-allowed;
+    }
+  }
+
+  .text-field__hint {
+    @apply m-0 text-meta text-ink-muted;
+  }
+}

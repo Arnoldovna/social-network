@@ -1,0 +1,66 @@
+@reference "#styles/main.css";
+
+/*
+ * UserRow: the maw list row for a person. The block is the size container; its body queries it (an element never
+ * matches its own container). Narrow: avatar and name on one line, actions wrap below. From the `row` container
+ * width (36rem) on, the actions move to the end of the line and the name grows to title-s.
+ */
+@layer components {
+  .user-row {
+    @apply m-0 p-0;
+
+    container-type: inline-size;
+    list-style: none;
+  }
+
+  .user-row__body {
+    @apply flex flex-wrap items-center gap-x-4 gap-y-3 pbs-4 pbe-3 border-be border-rule;
+
+    &:hover,
+    &:focus-within {
+      @apply border-rule-strong;
+    }
+
+    @variant @row {
+      @apply flex-nowrap gap-x-6 pbs-5;
+    }
+  }
+
+  .user-row__text {
+    @apply flex min-inline-0 flex-1 flex-col gap-1;
+  }
+
+  .user-row__name {
+    @apply self-start text-lead font-medium text-ink no-underline;
+
+    overflow-wrap: anywhere;
+
+    @variant hover {
+      @apply underline;
+
+      @variant motion-safe {
+        @apply animate-shake;
+      }
+    }
+
+    @variant @row {
+      @apply text-title-s;
+    }
+  }
+
+  .user-row__meta {
+    @apply m-0 text-meta text-ink-muted;
+
+    font-variant-numeric: tabular-nums;
+  }
+
+  .user-row__actions {
+    @apply flex flex-wrap items-center gap-x-6 gap-y-2 inline-full;
+
+    @variant @row {
+      @apply justify-end shrink-0;
+
+      inline-size: auto;
+    }
+  }
+}

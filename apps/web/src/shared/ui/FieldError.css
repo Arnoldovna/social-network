@@ -1,0 +1,10 @@
+@reference "#styles/main.css";
+
+/* FieldError: ink text, prefixed by a 2px error rule (maw-design-system §4, §14); never red text. */
+@layer components {
+  .field-error {
+    @apply m-0 ps-3 text-meta text-ink max-inline-prose;
+
+    border-inline-start: var(--rule-width-strong) solid var(--color-error);
+  }
+}

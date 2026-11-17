@@ -1,0 +1,19 @@
+@reference "#styles/main.css";
+
+/*
+ * Page shell of the signed-in area (maw-design-system §6 "Page shell"): one left-aligned column, 1280 px at most,
+ * centred on wide screens; gutters 12 px, 20 px from 640 px. Generous space between header and content, tight inside.
+ */
+@layer components {
+  .app-layout {
+    @apply flex flex-col mx-auto max-inline-page min-block-dvh;
+  }
+
+  .app-layout__main {
+    @apply flex-1 ps-3 pe-3 pbs-8 pbe-16;
+
+    @variant sm {
+      @apply ps-5 pe-5 pbs-12 pbe-24;
+    }
+  }
+}

@@ -1,0 +1,20 @@
+@reference "#styles/main.css";
+
+/*
+ * ConfirmDialog: a narrow Dialog (prose width) with one sentence and two actions, the outlined confirm button first
+ * and "cancel" as a text button. Mixed into the `.dialog` element; this file loads after Dialog.css (import order in
+ * ConfirmDialog.tsx), so its width wins.
+ */
+@layer components {
+  .confirm-dialog {
+    max-inline-size: min(var(--container-prose), 100% - --spacing(6));
+  }
+
+  .confirm-dialog__message {
+    @apply m-0 mbe-4 text-body max-inline-prose;
+  }
+
+  .confirm-dialog__actions {
+    @apply flex flex-wrap items-center gap-6 mbs-6;
+  }
+}

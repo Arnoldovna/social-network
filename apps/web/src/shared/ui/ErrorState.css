@@ -1,0 +1,21 @@
+@reference "#styles/main.css";
+
+/*
+ * ErrorState: the empty-state anatomy with the error marker (maw-design-system §4, §14): ink text, a 2px error rule
+ * on the inline-start side, never red text; one text button.
+ */
+@layer components {
+  .error-state {
+    @apply flex flex-col items-start gap-3 mbs-6 mbe-6 ps-5;
+
+    border-inline-start: var(--rule-width-strong) solid var(--color-error);
+  }
+
+  .error-state__title {
+    @apply m-0 text-title-s text-ink;
+  }
+
+  .error-state__text {
+    @apply m-0 text-body text-ink max-inline-prose;
+  }
+}

@@ -1,0 +1,59 @@
+@reference "#styles/main.css";
+
+/*
+ * Route error page (F-105): the page shell with the wordmark, a large sentence, the shared error state (2px error rule,
+ * ink text, "try again") and one text link. Same anatomy as the not-found page.
+ */
+@layer components {
+  .route-error-page {
+    @apply flex flex-col mx-auto max-inline-page min-block-dvh;
+  }
+
+  .route-error-page__header {
+    @apply pbs-8 pbe-6 ps-3 pe-3;
+
+    @variant sm {
+      @apply pbs-12 ps-5 pe-5;
+    }
+  }
+
+  .route-error-page__wordmark {
+    @apply text-title font-medium text-ink no-underline;
+
+    @variant md {
+      @apply text-title-l;
+    }
+
+    @variant lg {
+      @apply text-display;
+    }
+
+    @variant hover {
+      @variant motion-safe {
+        @apply animate-shake;
+      }
+    }
+  }
+
+  .route-error-page__main {
+    @apply flex flex-1 flex-col items-start gap-6 ps-3 pe-3 pbs-16 pbe-24;
+
+    @variant sm {
+      @apply ps-5 pe-5 pbs-24;
+    }
+  }
+
+  .route-error-page__title {
+    @apply m-0 text-title-l font-regular;
+  }
+
+  .route-error-page__link {
+    @apply text-body text-ink;
+
+    text-decoration-thickness: var(--rule-width);
+
+    @variant hover {
+      text-decoration-thickness: var(--rule-width-strong);
+    }
+  }
+}

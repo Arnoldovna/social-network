@@ -16,9 +16,12 @@
   }
 
   /*
-   * First focusable element of every page (F-103); slides in on keyboard focus. It sits one focus-ring width
-   * (outline + offset) in from the corner, so the whole 2px ring stays on screen. While hidden it moves up by its own
-   * height plus twice that distance, so no anti-aliased edge of its border can leak into the first pixel row.
+   * First focusable element of every page (F-103); appears on focus. It sits one focus-ring width (outline + offset)
+   * in from the corner, so the whole 2px ring stays on screen. While hidden it moves up by its own height plus twice
+   * that distance, so no anti-aliased edge of its border can leak into the first pixel row.
+   * It shows on :focus, not only :focus-visible: a focused control must never be off-screen (WCAG 2.4.11), and
+   * browsers skip :focus-visible for programmatic focus after a pointer interaction (e.g. focus reset on navigation).
+   * The position change is instant (no transition), so reduced motion needs no extra rule.
    */
   .skip-link {
     @apply bg-paper text-ink text-meta pbs-2 pbe-2 ps-4 pe-4;
@@ -31,7 +34,7 @@
     translate: 0 calc(-100% - 2 * (var(--focus-width) + var(--focus-offset)));
   }
 
-  .skip-link:focus-visible {
+  .skip-link:focus {
     translate: 0 0;
   }
 }

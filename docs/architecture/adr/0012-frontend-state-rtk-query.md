@@ -25,8 +25,11 @@ PLAN.md prescribes Redux Toolkit/RTK Query.
 - Plain slices only for: `realtime` connection status and nothing else; session expiry is an action handled by a
   listener middleware (`createListenerMiddleware`).
 - **Session expiry is only for users who were logged in.** The base query dispatches `sessionExpired` on a 401
-  only if the endpoint is not `/me`, `/csrf-token` or `/auth/*` **and** `selectIsAuthenticated(state)` (the `getMe`
-  cache holds a user; login/register write it with `upsertQueryData`) is true when the 401 arrives. Socket signals
+  only if the request is not `GET /me`, `/csrf-token` or `/auth/*` **and** `selectIsAuthenticated(state)` (the
+  `getMe` cache holds a user) is true when the 401 arrives. A 401 on `PATCH /me` from a signed-in user is a real
+  expiry. The `getMe` cache holds the `MeResponse` envelope `{ user }`, not the bare user, because RTK Query runs the
+  endpoint's raw response schema on upserted values too: login/register write `{ user: res.user }` with
+  `upsertQueryData`; `updateMe` and the avatar upload write their `MeResponse` as is. Socket signals
   (`disconnect` reason `io server disconnect`, `connect_error: unauthorized`) use the same guard. A 401 from
   `/api/me` means "visitor" and is handled silently by the loaders (ADR-0013), so a first-time visitor is never
   bounced from `/welcome` and never sees "Your session has expired".
