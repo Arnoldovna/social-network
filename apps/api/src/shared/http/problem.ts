@@ -27,12 +27,34 @@ const STATUS_TITLES: Readonly<Record<number, string>> = {
 /** csrf-csrf's `invalidCsrfTokenError` carries this code (ADR-0004, ADR-0005). */
 const CSRF_ERROR_CODE = 'EBADCSRFTOKEN';
 
+/**
+ * body-parser's error `type` for a body that is not valid JSON. Its message quotes the body around the syntax error
+ * (`Unexpected token 'h', ..."password": hunter2}" is not valid JSON`), so it is replaced by a fixed detail.
+ */
+export const BODY_PARSE_FAILED = 'entity.parse.failed';
+
 /** Errors created by `http-errors` (body-parser, csrf-csrf, ...) carry `status` and `expose`. */
 interface HttpErrorLike {
   status: number;
   expose: boolean;
   message: string;
   code?: unknown;
+  type?: unknown;
+}
+
+/** A client-safe detail for a third-party 4xx: never request content, only messages http-errors marks as exposable. */
+function httpErrorDetail(error: HttpErrorLike): string | undefined {
+  if (error.type === BODY_PARSE_FAILED) return 'The request body is not valid JSON.';
+  return error.expose ? error.message : undefined;
+}
+
+/**
+ * Express 5's router rethrows a `decodeURIComponent` failure of a path parameter (`/api/users/%E0`) as a `URIError`
+ * with `status = 400` but without the `expose` flag of http-errors, so it is not `HttpErrorLike`. Its message quotes
+ * the raw parameter, so the problem gets a fixed detail.
+ */
+function isUndecodablePathParam(error: unknown): boolean {
+  return error instanceof URIError && 'status' in error && error.status === 400;
 }
 
 function isHttpErrorLike(error: unknown): error is HttpErrorLike {
@@ -81,12 +103,15 @@ export function toProblem(error: unknown, req: Request): ProblemDetails {
       ? coded(413, 'file-too-large', req, error.message)
       : coded(400, 'invalid-request', req, error.message);
   }
+  if (isUndecodablePathParam(error)) {
+    return coded(400, 'invalid-request', req, 'The request path is not validly percent-encoded.');
+  }
   if (isHttpErrorLike(error) && error.status >= 400 && error.status < 500) {
     if (error.code === CSRF_ERROR_CODE) {
       return coded(403, 'csrf-invalid', req, 'The CSRF token is missing or invalid. Reload and try again.');
     }
     // body-parser: malformed JSON (400), too large (413), unsupported charset or encoding (415); the status stays.
-    return coded(error.status, 'invalid-request', req, error.expose ? error.message : undefined);
+    return coded(error.status, 'invalid-request', req, httpErrorDetail(error));
   }
   return {
     type: 'about:blank',

@@ -25,9 +25,15 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
 RUN pnpm --filter "@app/api..." run build
 # `deploy` installs the production dependencies into /out from the store again, so it needs the same cache mount
 # (without it every production package would be downloaded a second time).
+# `deploy` copies only package.json#files (`dist`) plus package.json, its lockfile and node_modules; the build fails if
+# sources, tests (the test-only sign-in route, ADR-0019 §3) or configs ever reach the image (Gate 1b, OVERVIEW §19).
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
     pnpm --filter @app/api deploy --prod --prefer-offline --ignore-scripts /out \
- && cp -r apps/api/drizzle /out/drizzle
+ && cp -r apps/api/drizzle /out/drizzle \
+ && for leaked in src test tsconfig.json vitest.config.ts Dockerfile; do \
+      if [ -e "/out/$leaked" ]; then echo "/out/$leaked must not ship in the image" >&2; exit 1; fi; \
+    done \
+ && test -z "$(find /out/dist -name '*.test.*' -o -name '__tests__' | head -n 1)"
 
 # Distroless: no shell, no package manager, runs as uid 65532.
 FROM gcr.io/distroless/nodejs26-debian13:nonroot@sha256:1d736cf8b5716c07a245301f92717143215d248fd55771ee1936ef4b3302e531 AS runtime

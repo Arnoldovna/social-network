@@ -105,10 +105,12 @@ export const users = pgTable(
     ),
     // NULL means "no bio". An empty string is never stored (Zod maps '' to null).
     check('users_bio_chk', sql`${t.bio} is null or (char_length(${t.bio}) between 1 and 1000)`),
-    // Only server-generated keys can ever be stored (B-30).
+    // Only server-generated keys of this very row can ever be stored (B-30): exactly the shape `newAvatarKey(id)`
+    // builds (no leading zero, a lowercase UUID) and the row's own id as the key's user, so `createAvatarUrl` can never
+    // meet a stored key it refuses (a key of another user would make every list that includes this user a 500).
     check(
       'users_avatar_key_chk',
-      sql`${t.avatarKey} is null or ${t.avatarKey} ~ '^avatars/[0-9]+/[0-9a-f-]{36}\\.webp$'`,
+      sql`${t.avatarKey} is null or (${t.avatarKey} ~ '^avatars/[1-9][0-9]*/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.webp$' and split_part(${t.avatarKey}, '/', 2) = ${t.id}::text)`,
     ),
     // Prefix search (F-60): LIKE 'abc%' on lower(...) can use a text_pattern_ops btree index.
     index('users_first_name_prefix_idx').using('btree', sql`lower(${t.firstName}) text_pattern_ops`),
@@ -192,7 +194,7 @@ export const wallPosts = pgTable(
   },
   (t) => [
     check('wall_posts_body_chk', sql`char_length(${t.body}) between 1 and 2000 and ${t.body} = btrim(${t.body})`),
-    index('wall_posts_wall_created_idx').on(t.wallOwnerId, t.createdAt.desc(), t.id.desc()),
+    index('wall_posts_wall_created_idx').on(t.wallOwnerId, t.createdAt.desc().nullsFirst(), t.id.desc().nullsFirst()),
     index('wall_posts_author_idx').on(t.authorId),
   ],
 );
@@ -222,7 +224,7 @@ export const chatMessages = pgTable(
   },
   (t) => [
     check('chat_messages_body_chk', sql`char_length(${t.body}) between 1 and 1000 and ${t.body} = btrim(${t.body})`),
-    index('chat_messages_created_idx').on(t.createdAt.desc(), t.id.desc()),
+    index('chat_messages_created_idx').on(t.createdAt.desc().nullsFirst(), t.id.desc().nullsFirst()),
     index('chat_messages_author_idx').on(t.authorId),
   ],
 );
@@ -247,10 +249,14 @@ CREATE TYPE "public"."friendship_status" AS ENUM('pending', 'accepted');
 CREATE UNIQUE INDEX "users_email_lower_idx" ON "users" USING btree (lower("email"));
 CREATE INDEX "users_full_name_prefix_idx" ON "users" USING btree ((lower("first_name" || ' ' || "last_name")) text_pattern_ops);
 CREATE UNIQUE INDEX "friendships_pair_idx" ON "friendships" USING btree (least("requester_id", "addressee_id"), greatest("requester_id", "addressee_id"));
-CREATE INDEX "wall_posts_wall_created_idx" ON "wall_posts" USING btree ("wall_owner_id", "created_at" DESC, "id" DESC);
-CREATE INDEX "chat_messages_created_idx" ON "chat_messages" USING btree ("created_at" DESC, "id" DESC);
+CREATE INDEX "wall_posts_wall_created_idx" ON "wall_posts" USING btree ("wall_owner_id","created_at" DESC NULLS FIRST,"id" DESC NULLS FIRST);
+CREATE INDEX "chat_messages_created_idx" ON "chat_messages" USING btree ("created_at" DESC NULLS FIRST,"id" DESC NULLS FIRST);
 ALTER TABLE "friendships" ADD CONSTRAINT "friendships_requester_id_users_id_fk" FOREIGN KEY ("requester_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
 ```
+
+The two keyset indexes say `.desc().nullsFirst()`: drizzle renders a bare `.desc()` as `DESC NULLS LAST`, which
+the planner cannot use for `ORDER BY created_at DESC, id DESC` (that order means `NULLS FIRST`; EXPLAIN showed a
+full sort instead of `Index Only Scan`). The columns are `NOT NULL`, so the index content is the same (ADR-0014).
 
 Columns are named explicitly and `casing` is not configured, which removes the known drizzle-kit risk of
 rendering camelCase names inside `sql` templates of checks and expression indexes when `casing: 'snake_case'` is
@@ -401,8 +407,8 @@ created by `GET /api/csrf-token` live 2 h, not 7 days.
 | ------------------------------------------ | -------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | `social-network:sess:<sid>`                | string (JSON)                    | rolling, `SESSION_TTL_DAYS` (7); anonymous (CSRF only) 2 h | express-session / connect-redis                                                                   |
 | `social-network:rl:<limiter>:<key>`        | counters                         | window                                                     | rate-limit-redis (`global`, `auth`, `login-email-ip`, `login-email`, `upload`, `search`, `write`) |
-| `social-network:ws-rl:<event>:<userId>`    | counter                          | window                                                     | socket event limiter (`chat:send`, `wall:join`)                                                   |
-| `social-network:ws-rl:handshake:<ip>`      | counter                          | 1 min                                                      | socket handshake limiter                                                                          |
+| `social-network:rl:<name>:<userId>`        | counter                          | window                                                     | socket event limiter (`chat-send`, `wall-join`; `shared/realtime/event-limiter.ts`)               |
+| `social-network:rl:ws-handshake:<ip>`      | counter                          | 1 min                                                      | socket handshake limiter                                                                          |
 | `social-network:presence:sockets:<userId>` | set of `<instanceId>:<socketId>` | none (cleaned on disconnect and on boot)                   | presence                                                                                          |
 | `social-network:presence:online`           | set of userIds                   | none                                                       | presence                                                                                          |
 

@@ -202,7 +202,8 @@ Health routes are mounted before helmet, session and rate limits and are not log
 
 `POST /__test/sign-in` exists only in apps built by `createTestApp()` (integration tests, ADR-0019 §3). The production
 app never mounts it; an app without test routes answers it with the 404 `not-found` problem
-(`test/app.int.test.ts`).
+(`test/app.int.test.ts`). CSRF protection runs before routing, so that 404 needs a valid `x-csrf-token`; without one
+the same request is 403 `csrf-invalid`.
 
 Rate limits are data, not code: `config/limits.ts` holds the production values (OVERVIEW §10), multiplied by
 `RATE_LIMIT_MULTIPLIER` (default 1). The global limiter keys by `u:<userId>` when a session exists and by IP
@@ -287,11 +288,16 @@ testable over HTTP and refetched after a reconnect; sockets only carry deltas ([
 WebSocket handshake, while they omit it on same-origin polling GETs; with polling disabled the origin rule can be
 strict and exact.
 
-1. `allowRequest`: the `Origin` header **must be present and** in `CORS_ORIGINS`. A missing or foreign origin is
-   refused before the upgrade (CORS does not cover WebSockets). Integration tests send `Origin` explicitly through
-   `extraHeaders` (Node clients send none) and assert that a missing and a foreign origin are both rejected.
-2. `io.engine.use(sessionMiddleware)`: the same express-session middleware reads the cookie.
-3. `io.use` chain, each failing with `next(new Error(<code>))` → client `connect_error` with that `message`:
+1. `io.engine.use(sessionMiddleware)`: the same express-session middleware reads the cookie. engine.io 6.6 runs
+   these middlewares **before** `allowRequest`, so a request with a validly signed session cookie costs one Redis
+   read even when its origin is then refused (a request without such a cookie costs none; nothing connects either
+   way).
+2. `allowRequest`: the `Origin` header **must be present and** in `CORS_ORIGINS`. A missing or foreign origin is
+   refused with 400 before the upgrade (CORS does not cover WebSockets). Integration tests send `Origin` explicitly
+   through `extraHeaders` (Node clients send none) and assert that a missing and a foreign origin are both rejected.
+3. `io.use` chain, each failing with `next(new Error(<code>))` → client `connect_error` with that `message`
+   (`HandshakeErrorCode` in `realtime.ts`: `rate-limited`, `unauthorized`, `too-many-connections`, `internal` for an
+   unexpected failure whose cause is logged, never sent):
    1. handshake limiter, 30 per minute per IP (Redis `ws-handshake`) → `rate-limited`;
    2. `authenticateSocket`: no `session.userId` → `unauthorized`; loads the `UserSummary` once into
       `socket.data.user`, stores `socket.data.sessionId`;
@@ -335,6 +341,8 @@ export const SocketError = z.object({
   retryAfterMs: z.number().int().optional(),
 });
 export type Ack<T extends object = object> = ({ ok: true } & T) | { ok: false; error: SocketError };
+/** `connect_error` messages of a rejected handshake (section 3, Handshake). */
+export const HandshakeErrorCode = z.enum(['rate-limited', 'unauthorized', 'too-many-connections', 'internal']);
 ```
 
 A handler never throws to socket.io; unexpected errors are logged and acked as `internal`. A missing ack callback
@@ -383,28 +391,31 @@ Payload parameters are typed `unknown` on the server side on purpose: the type s
 
 ## 4. Problem catalogue
 
-| Status | Code(s)                                                                                             | When                                                                                                                                                                                                         |
-| ------ | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 400    | `invalid-request`                                                                                   | params or query fail Zod (`ValidationError` with status 400); any `MulterError` except `LIMIT_FILE_SIZE` (unexpected field, second file, extra part); malformed JSON and other body-parser 4xx (status kept) |
-| 400    | `invalid-cursor`                                                                                    | cursor not decodable                                                                                                                                                                                         |
-| 400    | `file-required`                                                                                     | upload without a file (`FileRequiredError`)                                                                                                                                                                  |
-| 401    | `unauthorized`                                                                                      | no session (`UnauthorizedError`; the template's `unauthenticated` is renamed)                                                                                                                                |
-| 401    | `invalid-credentials`                                                                               | login failed                                                                                                                                                                                                 |
-| 403    | `csrf-invalid`                                                                                      | missing or wrong `x-csrf-token` (csrf-csrf `EBADCSRFTOKEN`, mapped in `toProblem`)                                                                                                                           |
-| 403    | `wall-forbidden`, `wall-write-forbidden`, `post-delete-forbidden`, `forbidden`                      | authorization in services                                                                                                                                                                                    |
-| 404    | `not-found`, `user-not-found`, `post-not-found`, `friend-request-not-found`, `friendship-not-found` | unknown route or resource                                                                                                                                                                                    |
-| 409    | `email-taken`, `friendship-exists`                                                                  | unique violations (Postgres `23505` mapped in the service, B-11)                                                                                                                                             |
-| 413    | `file-too-large`                                                                                    | upload > 2 MB (multer `LIMIT_FILE_SIZE`); body > 3 MB (nginx `error_page 413`, same problem+json)                                                                                                            |
-| 415    | `unsupported-media-type`                                                                            | sniffed type not allowed or undecodable                                                                                                                                                                      |
-| 422    | `validation-failed`, `cannot-befriend-self`                                                         | body fails Zod (`ValidationError` with status 422, `errors[]`); image dimensions too large (`location: 'file'`); semantic rule                                                                               |
-| 429    | `rate-limited`                                                                                      | any limiter; `Retry-After` and `RateLimit` headers (draft-8)                                                                                                                                                 |
-| 500    | – (`about:blank`, "An unexpected error occurred.")                                                  | anything else; stack only in the log (F-106). `problemCode()` returns `null`; the client treats it as `internal`                                                                                             |
+| Status | Code(s)                                                                                             | When                                                                                                                                                                                                                                                                                              |
+| ------ | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 400    | `invalid-request`                                                                                   | params or query fail Zod (`ValidationError` with status 400); any `MulterError` except `LIMIT_FILE_SIZE` (unexpected field, second file, extra part); malformed JSON (fixed detail "The request body is not valid JSON.", the body is never echoed, B-50) and other body-parser 4xx (status kept) |
+| 400    | `invalid-cursor`                                                                                    | cursor not decodable                                                                                                                                                                                                                                                                              |
+| 400    | `file-required`                                                                                     | upload without a file (`FileRequiredError`)                                                                                                                                                                                                                                                       |
+| 401    | `unauthorized`                                                                                      | no session (`UnauthorizedError`; the template's `unauthenticated` is renamed)                                                                                                                                                                                                                     |
+| 401    | `invalid-credentials`                                                                               | login failed                                                                                                                                                                                                                                                                                      |
+| 403    | `csrf-invalid`                                                                                      | missing or wrong `x-csrf-token` (csrf-csrf `EBADCSRFTOKEN`, mapped in `toProblem`)                                                                                                                                                                                                                |
+| 403    | `wall-forbidden`, `wall-write-forbidden`, `post-delete-forbidden`, `forbidden`                      | authorization in services                                                                                                                                                                                                                                                                         |
+| 404    | `not-found`, `user-not-found`, `post-not-found`, `friend-request-not-found`, `friendship-not-found` | unknown route or resource                                                                                                                                                                                                                                                                         |
+| 409    | `email-taken`, `friendship-exists`                                                                  | unique violations (Postgres `23505` mapped in the service, B-11)                                                                                                                                                                                                                                  |
+| 413    | `file-too-large`                                                                                    | upload > 2 MB (multer `LIMIT_FILE_SIZE`); body > 3 MB (nginx `error_page 413`, same problem+json)                                                                                                                                                                                                 |
+| 415    | `unsupported-media-type`                                                                            | sniffed type not allowed or undecodable                                                                                                                                                                                                                                                           |
+| 422    | `validation-failed`, `cannot-befriend-self`                                                         | body fails Zod (`ValidationError` with status 422, `errors[]`); image dimensions too large (`location: 'file'`); semantic rule                                                                                                                                                                    |
+| 429    | `rate-limited`                                                                                      | any limiter; `Retry-After` and `RateLimit` headers (draft-8)                                                                                                                                                                                                                                      |
+| 500    | – (`about:blank`, "An unexpected error occurred.")                                                  | anything else; stack only in the log (F-106). `problemCode()` returns `null`; the client treats it as `internal`                                                                                                                                                                                  |
 
 Every code thrown or mapped by the API is a member of `ProblemCode`: `AppError.code` is typed `ProblemCode`, and
 `shared/errors/__tests__/problem-codes.test.ts` runs each third-party mapping (multer, csrf-csrf, body-parser,
 rate limiter) through `toProblem` and parses the resulting code with `ProblemCode`.
 
 `instance` is the request path without the query string (`/api/users/search`, never `?q=…`, F-113).
+
+`TooManyRequestsError` (`shared/errors/app-error.ts`) is the one source of 429 `rate-limited`; every HTTP limiter
+(`rateLimiter()` in `shared/security/security.ts`) forwards it to the error handler.
 
 The web app's XHR upload client also maps a 413 response without a JSON body to `file-too-large`, so an
 unexpected proxy page can never surface as a generic error.

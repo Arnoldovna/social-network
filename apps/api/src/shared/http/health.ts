@@ -3,8 +3,11 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { Router, type RequestHandler } from 'express';
 import type { Logger } from 'pino';
 
-/** Resolves true when the dependency is usable. A false, a rejection, a throw or a hang count as failed. */
-export type ReadinessCheck = () => Promise<boolean>;
+/**
+ * Resolves true when the dependency is usable. A false, a rejection, a throw or a hang count as failed. `signal` aborts
+ * once the check has timed out (or the probe is answered), so a check that can cancel its request should pass it on.
+ */
+export type ReadinessCheck = (signal: AbortSignal) => Promise<boolean>;
 export type ReadinessChecks = Readonly<Record<string, ReadinessCheck>>;
 
 export interface HealthOptions {
@@ -29,17 +32,19 @@ type CheckOutcome = { ok: true } | { ok: false; reason: 'not-ready' | 'timed-out
 const TIMED_OUT: CheckOutcome = { ok: false, reason: 'timed-out' };
 
 async function runCheck(check: ReadinessCheck, timeoutMs: number): Promise<CheckOutcome> {
+  // One controller for the timer and the check: once the race is decided, both are cancelled.
   const timer = new AbortController();
   try {
     return await Promise.race([
-      Promise.try(check).then(
+      Promise.try(check, timer.signal).then(
         (ready): CheckOutcome => (ready ? { ok: true } : { ok: false, reason: 'not-ready' }),
         (error: unknown): CheckOutcome => ({ ok: false, error }),
       ),
       delay(timeoutMs, TIMED_OUT, { signal: timer.signal }),
     ]);
   } finally {
-    // Promise.race already subscribed to the timer, so the AbortError it rejects with here is handled.
+    // Promise.race already subscribed to the timer, so the AbortError it rejects with here is handled; a check that
+    // is still running (it lost the race) sees its signal abort.
     timer.abort();
   }
 }

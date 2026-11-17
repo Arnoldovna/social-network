@@ -4,6 +4,7 @@ import { createApp } from './app.js';
 import { loadEnv, type Env } from './config/env.js';
 import { createContainer } from './container.js';
 import { createLogger } from './shared/logging/logger.js';
+import { attachSocketServer } from './shared/realtime/socket-server.js';
 
 let env: Env;
 try {
@@ -21,17 +22,27 @@ const container = await createContainer(env, logger).catch((error: unknown) => {
 });
 
 let shuttingDown = false;
-const app = createApp({ env, logger, readiness: container.readiness, isShuttingDown: () => shuttingDown });
+const { app, onBoot } = createApp({ env, logger, ...container, isShuttingDown: () => shuttingDown });
 
 /**
  * Slow-client limits, passed to the constructor because it validates them (`headersTimeout` must not exceed
  * `requestTimeout`; set as properties afterwards, a larger value is silently ineffective): the headers within 15 s,
- * the whole request within 30 s. Phase 1b attaches socket.io to this server.
+ * the whole request within 30 s.
  */
 const server = createServer({ headersTimeout: 15_000, requestTimeout: 30_000 }, app);
 // Longer than the 60 s upstream keep-alive of common reverse proxies, so the proxy closes idle connections first and
 // never reuses one the app has just closed (an intermittent 502).
 server.keepAliveTimeout = 65_000;
+// socket.io shares this server (path /socket.io); upgrades run the same session middleware as HTTP (ADR-0005).
+attachSocketServer(container.io, server, container.session);
+
+// Presence clears this namespace's stale keys before the first socket can connect (ADR-0009).
+await onBoot().catch(async (error: unknown) => {
+  logger.fatal({ err: error }, 'failed to start');
+  await container.dispose();
+  process.exit(1);
+});
+
 server.once('error', (error) => {
   logger.fatal({ err: error }, 'failed to start');
   process.exit(1);
@@ -39,9 +50,12 @@ server.once('error', (error) => {
 server.listen(env.PORT, () => {
   logger.info({ port: env.PORT }, 'listening');
 });
+// Disconnects sockets whose session expired or was destroyed, every 60 s (ADR-0005). The timer is unref'd.
+container.sessionGuard.start();
 
 /**
- * Graceful shutdown: fail readiness, stop accepting connections, let in-flight requests finish, then close the pools.
+ * Graceful shutdown: fail readiness, stop the session sweep, close socket.io (every socket, the engine and, through
+ * it, the HTTP server, which stops accepting connections and lets in-flight requests finish), then close the pools.
  * A hard timeout guarantees the process exits even if something hangs. `exitCode` 1 marks a crash, so a supervisor
  * sees a failure; a failure that arrives while a signal-initiated shutdown is already running still sets it.
  */
@@ -56,12 +70,11 @@ async function shutdown(reason: string, exitCode: 0 | 1): Promise<void> {
   }, 10_000);
   force.unref();
 
+  container.sessionGuard.stop();
   server.closeIdleConnections();
-  await new Promise<void>((resolve) => {
-    server.close(() => {
-      resolve();
-    });
-  });
+  // socket.io 4.8 resolves once `server.close()` has called back, i.e. after the last in-flight request finished (an
+  // error there only means the server was not listening, so there is nothing left to wait for).
+  await container.io.close();
   await container.dispose();
   logger.info('shutdown complete');
   process.exit();

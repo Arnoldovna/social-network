@@ -122,8 +122,11 @@ names every file this needs: `src/db/{client,migrate}.ts`, `src/db/schema/index.
 
 - `currentDatabaseUrl()` (`test/database.ts`) throws outside a test or hook, so `createTestApp()` is called in
   `beforeAll`/`beforeEach`, never at module top level (the file's database does not exist yet).
-- `createTestApp({ limits?, keyPrefix?, testRoutes? = true })` returns
-  `{ app, httpServer, baseUrl, io, db, redis, prefix, sessionGuard, close }`. `baseUrl` is the ephemeral
+- `createTestApp({ limits?, keyPrefix?, testRoutes? = true, env? })` returns
+  `{ app, httpServer, baseUrl, io, db, redis, prefix, sessionGuard, storage, close }` (amended in Phase 1b: `env`
+  overrides `PRESENCE_GRACE_MS`, `UPLOAD_MAX_BYTES`, `SESSION_TTL_DAYS` and `TRUST_PROXY`, validated by the real
+  env schema, so presence tests need not wait 5 s per grace period; `storage` is the fake object storage with
+  `fail()`/`recover()` for the avatar 500 case). `baseUrl` is the ephemeral
   `http://127.0.0.1:<port>` that `test/socket.ts` connects to; `sessionGuard.sweep()` lets `realtime.int.test.ts`
   trigger the session sweep instead of waiting 60 s (the interval timer lives in `server.ts`, which tests do not
   use). `close()` closes io, the HTTP server, the pool and Redis; the setup file drops the database afterwards
@@ -192,9 +195,10 @@ names every file this needs: `src/db/{client,migrate}.ts`, `src/db/schema/index.
 
 Session `__Host-social-network.sid` (secure) / `social-network.sid` (local http); CSRF
 `__Host-social-network.x-csrf-token` / `social-network.x-csrf-token`. Integration tests run with
-`COOKIE_SECURE=false`, so their session cookie is `social-network.sid` and their CSRF cookie carries the test app's
-Redis prefix (`test-<uuid>.x-csrf-token`, template behaviour). Redis keys start with `social-network:` or
-`test-<uuid>:`.
+`COOKIE_SECURE=false`, so their session cookie is `social-network.sid` and their CSRF cookie carries the
+app slug like every other run (`social-network.x-csrf-token`): `createCsrf({ secret, secure })` builds the name from
+`APP_SLUG` (conventions §8), so the template's prefix-based name (`test-<uuid>.x-csrf-token`) is not used (amended
+in Phase 1b). Redis keys start with `social-network:` or `test-<uuid>:`.
 
 ## Alternatives
 

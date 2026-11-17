@@ -24,6 +24,13 @@ export const SocketError = z.object({
 });
 export type SocketError = z.infer<typeof SocketError>;
 
+/**
+ * The `message` of a rejected socket handshake, which socket.io-client reports as `connect_error` (API.md §3).
+ * `internal` covers an unexpected failure (Redis or Postgres unreachable); the cause is logged, never sent.
+ */
+export const HandshakeErrorCode = z.enum(['rate-limited', 'unauthorized', 'too-many-connections', 'internal']);
+export type HandshakeErrorCode = z.infer<typeof HandshakeErrorCode>;
+
 /** Acknowledgement of every client -> server event. */
 export type Ack<T extends object = object> = ({ ok: true } & T) | { ok: false; error: SocketError };
 

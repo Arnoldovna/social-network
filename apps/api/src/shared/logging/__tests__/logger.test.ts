@@ -1,5 +1,5 @@
 import { DrizzleQueryError } from 'drizzle-orm';
-import express from 'express';
+import express, { type ErrorRequestHandler } from 'express';
 import request from 'supertest';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -133,6 +133,32 @@ describe('request logger', () => {
 });
 
 describe('error serializer (B-50)', () => {
+  it('B-50: a body-parser JSON error is logged without the request body or the message that quotes it', async () => {
+    const { logger, lines } = capturedLogger();
+    const app = express();
+    app.post('/api/auth/login', express.json(), (_req, res) => {
+      res.sendStatus(204);
+    });
+    const logRejection: ErrorRequestHandler = (error, _req, res, _next) => {
+      logger.warn({ err: error }, 'request body rejected');
+      res.sendStatus(400);
+    };
+    app.use(logRejection);
+
+    await request(app)
+      .post('/api/auth/login')
+      .set('content-type', 'application/json')
+      .send('{"email": "mira@example.com", "password": hunter2-secret}');
+
+    expect(lines).toHaveLength(1);
+    expect(lines[0]?.['err']).toMatchObject({
+      type: 'SyntaxError',
+      message: 'Invalid JSON in the request body [redacted]',
+    });
+    expect(lines[0]?.['err']).not.toHaveProperty('body');
+    expect(JSON.stringify(lines)).not.toMatch(/hunter2|mira@/);
+  });
+
   it('B-50: a failed query is logged with its SQL and cause, never with the bound values', async () => {
     const { app, lines } = appWithCapturedLog();
 

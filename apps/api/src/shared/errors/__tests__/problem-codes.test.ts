@@ -1,6 +1,7 @@
 import { PROBLEM_TYPE_PREFIX, Problem, problemCode } from '@app/shared';
 import { doubleCsrf } from 'csrf-csrf';
 import express from 'express';
+import { rateLimit } from 'express-rate-limit';
 import multer from 'multer';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
@@ -14,6 +15,7 @@ import {
   ForbiddenError,
   NotFoundError,
   PayloadTooLargeError,
+  TooManyRequestsError,
   UnauthorizedError,
   UnsupportedMediaTypeError,
   ValidationError,
@@ -48,6 +50,7 @@ describe('ADR-0004: every code the API sends is a member of the shared ProblemCo
     ['ConflictError', new ConflictError('That email is taken.', 'email-taken'), 409, 'email-taken'],
     ['PayloadTooLargeError', new PayloadTooLargeError(2_097_152), 413, 'file-too-large'],
     ['UnsupportedMediaTypeError', new UnsupportedMediaTypeError(['image/png']), 415, 'unsupported-media-type'],
+    ['TooManyRequestsError', new TooManyRequestsError(), 429, 'rate-limited'],
     ['ValidationError (params/query)', new ValidationError([issue], { status: 400 }), 400, 'invalid-request'],
     ['ValidationError (body)', new ValidationError([issue], { status: 422 }), 422, 'validation-failed'],
   ])('F-106: %s -> %i %s', async (_name, error, status, code) => {
@@ -98,6 +101,67 @@ describe('ADR-0004: every code the API sends is a member of the shared ProblemCo
 
     expect([malformed.status, problemCode(Problem.parse(malformed.body))]).toEqual([400, 'invalid-request']);
     expect([tooLarge.status, problemCode(Problem.parse(tooLarge.body))]).toEqual([413, 'invalid-request']);
+  });
+
+  it("maps the router's undecodable path parameter (URIError, status 400 without expose) to 400 invalid-request", async () => {
+    const app = express();
+    app.get('/api/users/:id', (_req, res) => {
+      res.sendStatus(204);
+    });
+    app.use(errorHandler);
+
+    const response = await request(app).get('/api/users/%E0%A4%A');
+
+    expect(response.status).toBe(400);
+    const problem = Problem.parse(response.body);
+    expect(problemCode(problem)).toBe('invalid-request');
+    expect(problem.detail).toBe('The request path is not validly percent-encoded.');
+    expect(problem.instance).toBe('/api/users/%E0%A4%A');
+  });
+
+  it('maps a malformed JSON body to a fixed detail that never quotes the body back', async () => {
+    const app = express();
+    app.post('/api/auth/login', express.json(), (_req, res) => {
+      res.sendStatus(204);
+    });
+    app.use(errorHandler);
+
+    const response = await request(app)
+      .post('/api/auth/login')
+      .set('content-type', 'application/json')
+      .send('{"email": "mira@example.com", "password": hunter2-secret}');
+
+    expect(response.status).toBe(400);
+    expect(Problem.parse(response.body).detail).toBe('The request body is not valid JSON.');
+    expect(response.text).not.toMatch(/hunter2|mira@/);
+  });
+
+  it('maps an exceeded express-rate-limit limiter to 429 rate-limited and keeps its Retry-After header', async () => {
+    const app = express();
+    app.use(
+      rateLimit({
+        windowMs: 60_000,
+        limit: 1,
+        standardHeaders: 'draft-8',
+        legacyHeaders: false,
+        handler: (_req, _res, next) => {
+          next(new TooManyRequestsError());
+        },
+      }),
+    );
+    app.get('/api/users/search', (_req, res) => {
+      res.json({ items: [] });
+    });
+    app.use(errorHandler);
+
+    await request(app).get('/api/users/search').expect(200);
+    const limited = await request(app).get('/api/users/search?q=Mira');
+
+    expect(limited.status).toBe(429);
+    expect(problemCode(Problem.parse(limited.body))).toBe('rate-limited');
+    expect(limited.headers['content-type']).toMatch(/^application\/problem\+json/);
+    expect(Number(limited.headers['retry-after'])).toBeGreaterThan(0);
+    expect(limited.headers['ratelimit']).toBeDefined();
   });
 
   it('F-106: answers anything else with the generic 500 about:blank and never leaks the message', async () => {

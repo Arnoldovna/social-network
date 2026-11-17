@@ -36,7 +36,10 @@ protection (B-28), guarded only by a hard-coded origin (B-07).
   protect WebSocket upgrades). Node test clients set `Origin` through `extraHeaders`; separate tests assert that a
   missing and a foreign origin are rejected. Because the rule is exact, `CORS_ORIGINS` must name the origin the
   browser actually uses: compose builds it from `WEB_PORT`, the e2e override from `E2E_PORT` (ADR-0019 §6).
-- `io.engine.use(sessionMiddleware)` reuses the HTTP session; `io.use` applies a handshake limiter (30/min/IP),
+- `io.engine.use(sessionMiddleware)` reuses the HTTP session. engine.io 6.6 runs it before `allowRequest`, so a
+  validly signed session cookie on a foreign-origin handshake still costs one Redis read before the 400 (a request
+  without such a cookie costs none; nothing connects either way; amended in Phase 1b, `realtime.int.test.ts`).
+  `io.use` applies a handshake limiter (30/min/IP),
   rejects handshakes without `userId` (`connect_error: unauthorized`), caps open sockets at 10 per user
   (`too-many-connections`) and loads the user summary once.
 - Sockets join `rooms.session(sid)`; logout calls `publisher.disconnectSession(sid)` so the session's sockets close.

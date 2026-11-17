@@ -28,7 +28,11 @@ browsers and presence timing, which HTTP-only tests cannot prove.
     clones it per file (`CREATE DATABASE … TEMPLATE …`) and drops it afterwards; `fileParallelism` stays on. Global
     tables (chat) therefore start empty in every file, and assertions never race. `createTestApp()` is called in
     `beforeAll`/`beforeEach` (the file's database exists only then) and returns
-    `{ app, httpServer, baseUrl, io, db, redis, prefix, sessionGuard, close }` (ADR-0019 §5).
+    `{ app, httpServer, baseUrl, io, db, redis, prefix, sessionGuard, storage, close }` (ADR-0019 §5). The `test/db.ts`
+    inserters take the database first (`insertUser(db, fields?)`, `insertFriendship(db, requesterId, addresseeId,
+status, { createdAt?, acceptedAt? })`, `insertWallPosts(db, ownerId, authorId, n, { createdAt?, body? })`,
+    `insertChatMessages(db, authorId, n, { createdAt?, body? })`), so no module-level pool outlives the file's
+    database; `connectAs(agent, { baseUrl, origin?, timeoutMs? })` accepts the `TestApp` itself.
   - Testcontainers images come from `docker-compose.yml` (`test/images.ts`), so a Dependabot bump reaches both.
   - Authenticated agents come from the test-only `POST /__test/sign-in` (`test/http.ts#signIn`), mounted only by
     `createTestApp()`; only the auth unit's own tests register and log in through the real routes (ADR-0019 §3).

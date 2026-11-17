@@ -170,14 +170,14 @@ social-network/
 │   └── pull_request_template.md
 ├── apps/
 │   ├── api/
-│   │   ├── Dockerfile                       multi-stage, pnpm deploy --prod, distroless nonroot
+│   │   ├── Dockerfile                       multi-stage, pnpm deploy --prod (package.json#files = dist, + drizzle/), distroless nonroot; build fails if src/ or test/ would ship
 │   │   ├── drizzle.config.ts
 │   │   ├── drizzle/0000_init.sql (+ meta/)
 │   │   ├── package.json  tsconfig.json  tsconfig.build.json  vitest.config.ts  vitest.integration.config.ts
 │   │   ├── src/
-│   │   │   ├── server.ts                    loadEnv → logger → container → createApp → http server → io.attach → listen; shutdown
+│   │   │   ├── server.ts                    loadEnv → logger → container → createApp → http server → io.attach → onBoot → listen → sweep; shutdown
 │   │   │   ├── container.ts                 pg pool, redis, S3, session, limiter stores, realtime server, readiness
-│   │   │   ├── app.ts                       createApp(deps) → { app, socketRegistrars }
+│   │   │   ├── app.ts                       createApp(deps) → { app, onBoot }; registers the socket handlers on deps.io itself
 │   │   │   ├── config/env.ts                Zod env (section 13)
 │   │   │   ├── config/app.ts                APP_SLUG = 'social-network'
 │   │   │   ├── config/limits.ts             DEFAULT_LIMITS, resolveLimits(env) (section 10)
@@ -192,7 +192,7 @@ social-network/
 │   │   │   │   ├── security/{session,csrf,security,login-limiters}.ts
 │   │   │   │   ├── storage/object-storage.ts
 │   │   │   │   ├── uploads/{upload,process-image}.ts
-│   │   │   │   ├── media/media-url.ts       (userId, key) → '/api/users/<id>/avatar?v=<uuid>' or null
+│   │   │   │   ├── media/media-url.ts       createAvatarUrl(): (userId, key) → '/api/users/<id>/avatar?v=<uuid>' or null; newAvatarKey, parseAvatarKey
 │   │   │   │   ├── pagination/cursor.ts
 │   │   │   │   ├── logging/logger.ts
 │   │   │   │   ├── redis/redis.ts
@@ -218,14 +218,15 @@ social-network/
 │   │       ├── global-setup.ts              Testcontainers Postgres 18 + Redis 8 (digest-pinned), migrated template database
 │   │       ├── setup-database.ts  database.ts  per-file database cloned from the template, currentDatabaseUrl() (conventions §7)
 │   │       ├── images.ts                    composeImages(): postgres/redis refs read from docker-compose.yml (one source)
-│   │       ├── test-app.ts                  createTestApp({ limits?, keyPrefix?, testRoutes? }): real app + io on the file's database, multiplied limits, own key prefix
+│   │       ├── test-app.ts                  createTestApp({ limits?, keyPrefix?, testRoutes?, env? }): real app + io on the file's database, multiplied limits, own key prefix
 │   │       ├── test-routes.ts               POST /__test/sign-in (test apps only, ADR-0019 §3)
 │   │       ├── fakes.ts                     generic infra fakes: storage, publisher, friendship reader, hasher (fast), clock
 │   │       ├── http.ts                      agent helpers: csrf(), signIn() (test route), register(), login() (auth's own tests)
-│   │       ├── socket.ts                    connectAs(agent, { origin? }) → websocket-only client with Origin header, waitFor(event)
-│   │       ├── db.ts                        typed inserters for all four tables (explicit createdAt, bulk); no truncation
+│   │       ├── socket.ts                    connectAs(agent, { baseUrl, origin?, timeoutMs? }) → websocket-only client with Origin header; waitFor, waitForDisconnect, recordEvents
+│   │       ├── db.ts                        typed inserters for all four tables, db first (explicit createdAt, bulk); no truncation
 │   │       ├── app.int.test.ts              404 problem, security headers, health, no test route without testRoutes (F-04, F-106, F-109, F-114)
-│   │       └── realtime.int.test.ts         handshake auth, origin rules, handshake limit, socket cap, session sweep (F-111)
+│   │       ├── realtime.int.test.ts         handshake auth, origin rules, handshake limit, socket cap, session sweep (F-111)
+│   │       └── harness.int.test.ts          the helpers' own contracts (B-16, F-18, B-58)
 │   ├── web/
 │   │   ├── Dockerfile  nginx.conf (+ /socket.io/ upgrade location, problem+json 413, CSP without inline scripts)
 │   │   ├── index.html                       lang="en", charset, viewport; no inline script
@@ -412,8 +413,8 @@ in [API.md §3](API.md#3-socketio-path-socketio-same-origin).
   same-origin GETs carry no `Origin`) is disabled. The E2E smoke spec proves the WebSocket path through nginx
   without a login (an anonymous raw WebSocket gets `unauthorized`); `routing.spec`/`chat.spec` prove that a logged-in
   page reaches `connected` (ADR-0019 §6).
-- Handshake: origin rule in `allowRequest`, the same express-session middleware through `io.engine.use`, then
-  `io.use`: handshake limiter (30/min/IP), reject without `userId`, at most 10 sockets per user (F-111, B-38,
+- Handshake: the same express-session middleware through `io.engine.use` (engine.io runs it before `allowRequest`),
+  the origin rule in `allowRequest`, then `io.use`: handshake limiter (30/min/IP), reject without `userId`, at most 10 sockets per user (F-111, B-38,
   B-07). The client is `socket.io-client` from the bundle only (B-134).
 - Rooms (built only with `shared/realtime/rooms.ts`): `rooms.user(id)` (all tabs of a user), `rooms.session(sid)`
   (for logout and expiry), `rooms.chat` (all authenticated sockets), `rooms.wall(ownerId)` (joined explicitly
@@ -539,8 +540,10 @@ flowchart LR
   `*.passwordHash`, `*.body` of chat/wall/bio payloads are never logged because request bodies are not logged at all
   (pino-http default) and services log ids only (B-50). The `err` serializer of every logger (also pino-http's) drops
   error properties that carry query values or credentials (`client` from pg-pool with the connection password,
-  Drizzle's `params`, Postgres' `detail`, `where`, `internalQuery`) and replaces Drizzle's `params:` values in
-  `message` and `stack` with `[redacted]`; the parameterised SQL stays (B-50, `logger.test.ts`).
+  Drizzle's `params`, Postgres' `detail`, `where`, `internalQuery`, body-parser's raw `body`) and replaces Drizzle's
+  `params:` values in `message` and `stack` with `[redacted]`; the parameterised SQL stays. body-parser's JSON parse
+  error quotes the request body in its message, so that message is replaced in the log and the 400 problem gets the
+  fixed detail "The request body is not valid JSON." (B-50, `logger.test.ts`, `problem-codes.test.ts`).
 - Socket logging: one `debug` line per event `{ event, socketId, userId, ok, code }`; never message text or bio.
 - Levels: 5xx `error` with stack, 4xx `warn` without stack (pino-http `customLogLevel`), lifecycle `info`. Health
   probes are not access-logged; a failed readiness check logs one `warn` with the check's name and cause (the 503

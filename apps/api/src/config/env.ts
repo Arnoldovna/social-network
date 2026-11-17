@@ -1,6 +1,8 @@
 import { AVATAR_MAX_BYTES } from '@app/shared';
 import { z } from 'zod';
 
+import { RATE_LIMIT_MULTIPLIER_RANGE } from './limits.js';
+
 const integer = (min: number, max: number, fallback: number) =>
   z.coerce.number().int().min(min).max(max).default(fallback);
 
@@ -62,7 +64,13 @@ const EnvSchema = z.object({
   UPLOAD_MAX_BYTES: integer(1, AVATAR_MAX_BYTES, AVATAR_MAX_BYTES),
 
   PRESENCE_GRACE_MS: integer(0, 60_000, 5_000),
-  RATE_LIMIT_MULTIPLIER: z.coerce.number().min(1).max(10_000).default(1),
+  // Multiplies every limit in config/limits.ts; may be fractional (OVERVIEW §10). The default 1 means "production
+  // values" by itself, independent of the range's lower bound.
+  RATE_LIMIT_MULTIPLIER: z.coerce
+    .number()
+    .min(RATE_LIMIT_MULTIPLIER_RANGE.min)
+    .max(RATE_LIMIT_MULTIPLIER_RANGE.max)
+    .default(1),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

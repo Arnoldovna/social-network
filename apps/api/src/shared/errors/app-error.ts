@@ -113,3 +113,14 @@ export class UnsupportedMediaTypeError extends AppError {
     });
   }
 }
+
+/**
+ * Any limiter (HTTP or socket handshake) rejected the request: 429 `rate-limited`. express-rate-limit sets
+ * `Retry-After` and the draft-8 `RateLimit` headers before its handler forwards this error, and the error handler
+ * keeps headers that are already set (API.md §4, ADR-0006).
+ */
+export class TooManyRequestsError extends AppError {
+  constructor(detail = 'Too many requests. Try again later.') {
+    super({ status: 429, code: 'rate-limited', title: 'Too many requests', detail });
+  }
+}

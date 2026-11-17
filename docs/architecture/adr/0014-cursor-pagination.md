@@ -23,6 +23,9 @@ ascending in SQL then reversed in JavaScript (B-72).
   with `limit=10`, every id appears exactly once and in order.
 - Page size 20 by default, max 50 (`PageQuery`).
 - Indexes: `wall_posts (wall_owner_id, created_at DESC, id DESC)`, `chat_messages (created_at DESC, id DESC)`.
+  In drizzle they are written `.desc().nullsFirst()`: a bare `.desc()` renders `DESC NULLS LAST`, which Postgres
+  cannot use for `ORDER BY created_at DESC, id DESC` (implicitly `NULLS FIRST`), so every page would sort the whole
+  wall (verified with EXPLAIN on Postgres 18; amended in Phase 1b).
 - Wall: newest first, "load older posts" button (no infinite scroll, which is hostile to keyboard and footer access).
 - Chat: the API returns newest first; the client reverses each page for display (oldest at top, F-76) and loads
   older pages with a "load older messages" button at the top while keeping the scroll anchor.
