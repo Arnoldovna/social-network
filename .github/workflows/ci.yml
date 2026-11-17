@@ -1,0 +1,153 @@
+name: CI
+
+# The same steps as `pnpm verify`, as separate jobs (OVERVIEW §15). CI cost rule (ADR-0018): `e2e` runs on pull
+# requests only; every other job also runs on push to main and on demand. A run with a skipped job still concludes
+# `success`, so release.yml is still triggered after a merge.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Least privilege: every job only reads the repository.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GITLEAKS_VERSION: 8.30.1
+  GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb # linux_x64 tarball
+
+jobs:
+  lint:
+    name: lint + stylelint + utility check + schema drift
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm lint:css
+      - run: pnpm check:utilities
+      # The committed SQL must match the Drizzle schema (B-63, ADR-0017): generating again must change nothing,
+      # neither a modified nor a new file below apps/api/drizzle.
+      - name: Schema drift
+        run: |
+          pnpm --filter @app/api exec drizzle-kit generate
+          git diff --exit-code -- apps/api/drizzle
+          test -z "$(git status --porcelain -- apps/api/drizzle)"
+
+  typecheck:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm typecheck
+
+  unit:
+    name: unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm test
+
+  integration:
+    name: integration tests (Testcontainers)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      # Docker is preinstalled on ubuntu runners; Testcontainers starts Postgres and Redis itself (one database per
+      # test file, conventions §7).
+      - run: pnpm test:integration
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm build
+
+  # CI cost rule (ADR-0018): pull requests only. The PR run is also the proof that both production images build and
+  # that sharp, argon2 and socket.io load in the distroless runtime on linux/amd64.
+  e2e:
+    name: e2e (isolated compose project + Playwright)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - name: Create a throwaway .env with random secrets
+        run: node scripts/setup-env.mjs
+      - run: pnpm exec playwright install --with-deps chromium
+      # run-e2e.mjs starts social-network-e2e, writes test-results/compose.log on failure and always tears it down.
+      - run: pnpm test:e2e
+        env:
+          CI: 'true'
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
+  # The README's developer setup, run twice (B-63, ADR-0017): the second run must succeed and leave .env
+  # byte-identical (setup:env never re-randomises a secret; migrate and seed are idempotent).
+  dev-setup-smoke:
+    name: dev:setup smoke (twice, idempotent)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm dev:setup
+      - name: Keep a copy of the generated .env
+        run: cp .env "$RUNNER_TEMP/env.first"
+      - run: pnpm dev:setup
+      - name: .env unchanged by the second run
+        run: cmp .env "$RUNNER_TEMP/env.first"
+
+  gitleaks:
+    name: secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Install gitleaks (checksum verified)
+        run: |
+          curl -sSfL -o gitleaks.tar.gz \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  gitleaks.tar.gz" | sha256sum --check --strict
+          tar -xzf gitleaks.tar.gz gitleaks
+          sudo install gitleaks /usr/local/bin/gitleaks
+      - name: Scan full history
+        run: gitleaks git --redact --no-banner --verbose .

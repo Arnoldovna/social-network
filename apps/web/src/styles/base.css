@@ -1,0 +1,67 @@
+/*
+ * Element defaults only, no classes. Tokens only.
+ * Font files are imported in the JS entry (src/main.tsx, maw-design-system §2, ADR-0015); the family comes from
+ * --font-sans, set once on the root and inherited (B-124: no universal font rule).
+ */
+@layer base {
+  html {
+    @apply bg-paper text-ink font-sans font-regular text-body;
+
+    -webkit-font-smoothing: antialiased;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    @apply m-0 min-block-dvh;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-medium leading-heading;
+
+    text-wrap: balance;
+    hyphens: auto;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  a {
+    color: inherit;
+    text-decoration-thickness: var(--rule-width);
+    text-underline-offset: var(--underline-offset);
+  }
+
+  img,
+  video {
+    @apply block max-inline-full;
+
+    block-size: auto;
+  }
+
+  /* Placeholders are never labels (maw §6); where one is used it still meets 4.5:1, which muted ink does (F-104). */
+  ::placeholder {
+    @apply text-ink-muted;
+
+    opacity: 1;
+  }
+
+  /* Focus is never removed (F-102, B-106, B-123): 2px ink outline, 4px offset, visible on paper and every accent. */
+  :focus-visible {
+    outline: var(--focus-width) solid var(--color-ink);
+    outline-offset: var(--focus-offset);
+  }
+
+  ::selection {
+    @apply bg-accent text-on-accent;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
+}

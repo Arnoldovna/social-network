@@ -1,0 +1,28 @@
+# Override for the isolated e2e project `social-network-e2e` (scripts/run-e2e.mjs only; conventions §6, ADR-0016,
+# ADR-0017, ADR-0019 §6):
+#   docker compose -p social-network-e2e -f docker-compose.yml -f docker-compose.e2e.yml --profile app up --build --wait
+# No published infra ports, data on tmpfs, web on 127.0.0.1:E2E_PORT (8183), every rate limit raised 100-fold.
+# Production limits are proven by integration tests, never by e2e. `!reset` / `!override` need Compose >= 2.24.4.
+services:
+  postgres:
+    ports: !reset []
+    volumes: !reset []
+    tmpfs: ['/var/lib/postgresql']
+
+  redis:
+    ports: !reset []
+
+  minio:
+    ports: !reset []
+    volumes: !reset []
+    tmpfs: ['/data']
+
+  api:
+    environment:
+      RATE_LIMIT_MULTIPLIER: '100'
+      # Without the e2e origin every socket handshake from the e2e stack is refused (ADR-0019 §6).
+      CORS_ORIGINS: http://127.0.0.1:${E2E_PORT:-8183},http://localhost:${E2E_PORT:-8183}
+
+  # Compose concatenates `ports` across files; !override replaces 8080, so e2e can run next to `pnpm demo`.
+  web:
+    ports: !override ['127.0.0.1:${E2E_PORT:-8183}:8080']

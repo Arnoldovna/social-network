@@ -36,7 +36,7 @@ limit (~268 Mpx), so a small PNG with huge dimensions could OOM-kill the single 
      host-wide OOM.
 4. Key `avatars/<userId>/<uuid>.webp` (server-generated), `PutObject` with `ContentType: image/webp`.
 5. **Atomic swap**: `UPDATE users SET avatar_key = $new WHERE id = $me RETURNING OLD.avatar_key AS old_key,
-   NEW.<public cols>` (Postgres 18 `OLD`/`NEW` in `RETURNING`, through drizzle's `sql`). Concurrent uploads by the
+NEW.<public cols>` (Postgres 18 `OLD`/`NEW` in `RETURNING`, through drizzle's `sql`). Concurrent uploads by the
    same user serialise on the row lock, and each request gets exactly the key it replaced, so no object is
    orphaned and none is deleted twice. If the update fails, the new object is deleted.
 6. Delete the old object after the DB update (warn on failure, never fail the request), F-39.
@@ -45,7 +45,7 @@ limit (~268 Mpx), so a small PNG with huge dimensions could OOM-kill the single 
    route `GET /api/users/:id/avatar` (avatars module, `requireAuth`) looks up the user's current `avatar_key` (PK
    lookup), streams the object with `pipeline`, `Content-Type` from storage, `Content-Disposition: inline`,
    `nosniff` (helmet), `ETag` = the uuid. When `v` matches the current uuid: `Cache-Control: private,
-   max-age=31536000, immutable`; otherwise `private, no-cache` (revalidates to 304 cheaply). An old URL held in
+max-age=31536000, immutable`; otherwise `private, no-cache` (revalidates to 304 cheaply). An old URL held in
    any cache therefore always resolves to an existing object; it can be stale at most, never broken.
 9. **Freshness for the uploader (F-37)**: the web upload endpoint writes `Me`, invalidates `User` self and the
    `Chat`, `Wall`, `Friendships`, `Presence` tags, so everything rendered afterwards carries the new `v`. `<Avatar>`
@@ -84,5 +84,5 @@ limit (~268 Mpx), so a small PNG with huge dimensions could OOM-kill the single 
   makes repeat views free.
 - Integration tests generate fixture images with `sharp` at runtime (JPEG, PNG with EXIF, GIF, HTML disguised as
   `.png`, 3 MB file, **a tiny PNG whose IHDR declares 16000×16000 px**, built byte by byte with a valid CRC → 422
-without a memory spike) instead
+  without a memory spike) instead
   of committing binaries; a test proves an old `avatarUrl` still returns 200 after a new upload.

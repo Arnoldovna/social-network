@@ -1,6 +1,6 @@
 # ADR-0005: Redis sessions, csrf-csrf for HTTP, authenticated handshake for sockets
 
-- Status: accepted (revised after the architecture critique: WebSocket-only transport with a strict Origin rule, sockets bounded by session lifetime)
+- Status: accepted (revised after the architecture critique: WebSocket-only transport with a strict Origin rule, sockets bounded by session lifetime; cookie names and the e2e allow-list amended by ADR-0019)
 - Date: 2026-11-15
 - Related: B-02, B-07, B-17, B-18, B-20, B-28, B-38, B-58, F-18–F-23, F-111
 
@@ -14,23 +14,28 @@ protection (B-28), guarded only by a hard-coded origin (B-07).
 ## Decision
 
 **HTTP**
+
 - express-session 1.19 + connect-redis 10, the template's `createSessionMiddleware`: opaque id cookie
   (`__Host-social-network.sid` in production, `social-network.sid` on local http), `HttpOnly`, `SameSite=Lax`, `Secure` in production, `rolling`, idle TTL
   `SESSION_TTL_DAYS` (7), `saveUninitialized: false`. The session stores `userId` only.
 - `establishSession` (regenerate → set → save) on register and login; `destroySession` + `clearCookie` on
   `POST /api/auth/logout` (CSRF-protected, 204).
-- csrf-csrf 4.1 signed double submit, bound to the session id, header `x-csrf-token`, `GET /api/csrf-token` binds
+- csrf-csrf 4.1 signed double submit, bound to the session id, cookie `__Host-social-network.x-csrf-token` in
+  production / `social-network.x-csrf-token` on local http (app-scoped, conventions §8; cookies ignore ports and all
+  three projects run on `127.0.0.1`), header `x-csrf-token`, `GET /api/csrf-token` binds
   an anonymous session first (with a 2 h `cookie.maxAge`, so bots cannot park 7-day sessions in Redis);
   register/login return a fresh token. Token kept in memory in the SPA and dropped on logout and on session
   expiry, because it is bound to a session that no longer exists. Failures are 403 `csrf-invalid`.
 - `requireAuth` on every router except register, login, csrf-token, health.
 
 **Sockets**
+
 - Same origin via nginx, **WebSocket transport only** (`transports: ['websocket']` on server and client).
   Browsers always send `Origin` on a WebSocket handshake but omit it on same-origin polling GETs, so only without
   polling can the rule be strict: `allowRequest` rejects a **missing** or non-allow-listed `Origin` (CORS does not
   protect WebSocket upgrades). Node test clients set `Origin` through `extraHeaders`; separate tests assert that a
-  missing and a foreign origin are rejected.
+  missing and a foreign origin are rejected. Because the rule is exact, `CORS_ORIGINS` must name the origin the
+  browser actually uses: compose builds it from `WEB_PORT`, the e2e override from `E2E_PORT` (ADR-0019 §6).
 - `io.engine.use(sessionMiddleware)` reuses the HTTP session; `io.use` applies a handshake limiter (30/min/IP),
   rejects handshakes without `userId` (`connect_error: unauthorized`), caps open sockets at 10 per user
   (`too-many-connections`) and loads the user summary once.

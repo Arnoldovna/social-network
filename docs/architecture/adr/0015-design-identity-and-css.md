@@ -41,8 +41,8 @@ and the Tailwind 4 rules.
     maw because there are more than three links, F-94) that reveals nav links, search and "log out".
   - Acceptance: `layout.spec` asserts no horizontal overflow and no overlapping header elements at 320, 390, 640,
     768, 1024, 1280 and 1440 px; the design review screenshots include 768 and 1024.
-  This deviates from the maw single-row header (1–3 links) only in the second row, which the review rubric's
-  "header wraps cleanly" criterion allows.
+    This deviates from the maw single-row header (1–3 links) only in the second row, which the review rubric's
+    "header wraps cleanly" criterion allows.
 - Names render as stored; any uppercase styling is CSS `text-transform` (F-58, B-110), though the maw identity uses
   none.
 - Dark mode via token redefinition only (`prefers-color-scheme`), no `dark:` variants. **No theme bootstrap

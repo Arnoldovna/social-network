@@ -15,22 +15,36 @@ numbered, testable acceptance criteria for the rebuild.
 - Every criterion should map to at least one automated test (unit, API
   integration or Playwright E2E). The suggested test level is given in
   brackets: `[unit]`, `[api]`, `[e2e]`, `[a11y]`.
+- **Amendments.** This document was reconciled with the architecture in
+  [ADR-0002](architecture/adr/0002-reconcile-features-with-house-standards.md):
+  F-09 (password length), F-16 (throttling), F-68 (dropped), F-114 (health
+  routes) and Appendices A and B (target paths and types) carry the decided
+  values and name the ADR. For exact paths, payloads and column types,
+  [API.md](architecture/API.md) and
+  [DATA-MODEL.md](architecture/DATA-MODEL.md) are binding.
+- **Label casing.** Quoted UI labels in this document ("Add friend",
+  "Profile", "Friends", "Log out" …) give the wording, not the casing.
+  Navigation items, buttons and form labels render in lowercase ("add
+  friend", "profile"); content and messages use sentence case ("No friend
+  requests right now."), per maw-design-system §1.7 and §10 (ADR-0002).
+  E2E tests match role names case-insensitively. User names are never
+  re-cased (F-58).
 
 ---
 
 ## 1. Pages and routing
 
-| Path (rebuild) | Legacy equivalent | Access | Purpose |
-|---|---|---|---|
-| `/welcome` | `/welcome#/` | visitors only | Registration form + intro panel |
-| `/welcome/login` | `/welcome#/login` | visitors only | Login form |
-| `/welcome/about` | `/welcome#/about` | visitors only | About the project |
-| `/` | `/` | users | Own profile (avatar, name, bio, own wall) |
-| `/users/:id` | `/users/:id` | users | Another user's profile, friend button, wall |
-| `/friends` | `/friends` | users | Friends, incoming and outgoing requests |
-| `/online` | `/online` | users | Users currently online |
-| `/chat` | `/chat` | users | Global chat room |
-| `*` | (legacy served the SPA for everything) | all | Not-found page **(new)** |
+| Path (rebuild)   | Legacy equivalent                      | Access        | Purpose                                     |
+| ---------------- | -------------------------------------- | ------------- | ------------------------------------------- |
+| `/welcome`       | `/welcome#/`                           | visitors only | Registration form + intro panel             |
+| `/welcome/login` | `/welcome#/login`                      | visitors only | Login form                                  |
+| `/welcome/about` | `/welcome#/about`                      | visitors only | About the project                           |
+| `/`              | `/`                                    | users         | Own profile (avatar, name, bio, own wall)   |
+| `/users/:id`     | `/users/:id`                           | users         | Another user's profile, friend button, wall |
+| `/friends`       | `/friends`                             | users         | Friends, incoming and outgoing requests     |
+| `/online`        | `/online`                              | users         | Users currently online                      |
+| `/chat`          | `/chat`                                | users         | Global chat room                            |
+| `*`              | (legacy served the SPA for everything) | all           | Not-found page **(new)**                    |
 
 - **F-01** A visitor who requests any app page (`/`, `/users/:id`, `/friends`,
   `/online`, `/chat`) is redirected to `/welcome`. `[e2e]`
@@ -48,6 +62,7 @@ numbered, testable acceptance criteria for the rebuild.
 ## 2. Registration, login and logout (module `auth`)
 
 ### Registration
+
 - **F-06** A visitor can register with first name, last name, email and
   password. On success the user is logged in immediately and lands on `/`.
   `[api][e2e]`
@@ -56,9 +71,13 @@ numbered, testable acceptance criteria for the rebuild.
   restriction on TLD length, `+` addressing allowed), is trimmed and stored
   lower-cased; uniqueness is case-insensitive. **(new: legacy regex rejected
   valid addresses and uniqueness was case-sensitive)** `[unit][api]`
-- **F-09** Password is required, minimum 8 characters, maximum 128 characters,
-  checked on the server (legacy: 6 characters, client-side only). **(new)**
-  `[unit][api]`
+- **F-09** Password is required, minimum 12 characters, maximum 256
+  characters, no composition rules and no trimming; checked on the server and
+  in the form by the same shared schema; the form hint says "At least 12
+  characters." (legacy: 6 characters, client-side only). Test values: 11
+  characters → 422, 12 and 256 accepted, 257 → 422. **(new; amended by
+  ADR-0002 and [ADR-0006](architecture/adr/0006-password-policy-and-login-throttling.md):
+  originally 8–128)** `[unit][api]`
 - **F-10** Registering with an email that already exists fails with HTTP 409
   and the form shows "An account with this email already exists." next to the
   email field. **(new)** `[api][e2e]`
@@ -74,19 +93,24 @@ numbered, testable acceptance criteria for the rebuild.
   a busy state; double-clicking creates only one account. **(new)** `[e2e]`
 
 ### Login
+
 - **F-14** A visitor can log in with email + password; on success they land on
   `/`. `[api][e2e]`
 - **F-15** Wrong email or wrong password both return HTTP 401 with the same
   generic message "Email or password is incorrect." and take comparable time
   (no user enumeration). **(new)** `[api]`
-- **F-16** Login attempts are rate-limited per IP and per email (e.g. 5 per 15
-  minutes); exceeding the limit returns HTTP 429 with `Retry-After`. **(new)**
-  `[api]`
+- **F-16** Login attempts are rate-limited per IP and per email: register and
+  login share 10 requests per 15 minutes per IP; failed logins are limited to
+  5 per 15 minutes per email and IP and to 50 per hour per email from any IP.
+  Exceeding a limit returns HTTP 429 with `Retry-After`. **(new; refined by
+  ADR-0002 and ADR-0006: the IP in the strict per-email key prevents locking
+  out the owner)** `[api]`
 - **F-17** Passwords are stored as argon2id hashes; the hash is never returned
   by any endpoint or socket event. **(new)** `[api]`
 - **F-18** The session ID is rotated on login and registration. **(new)** `[api]`
 
 ### Session and logout
+
 - **F-19** The session cookie is `HttpOnly`, `SameSite=Lax`, `Secure` in
   production, signed with a secret from the environment, and expires after a
   configurable idle time (default 7 days). Sessions are stored server-side
@@ -102,6 +126,7 @@ numbered, testable acceptance criteria for the rebuild.
   "Your session has expired. Please log in again." **(new)** `[e2e]`
 
 ### CSRF
+
 - **F-23** Every state-changing HTTP request (`POST`, `PUT`, `PATCH`,
   `DELETE`) requires a valid CSRF token; requests without it return HTTP 403.
   `[api]`
@@ -168,12 +193,12 @@ numbered, testable acceptance criteria for the rebuild.
 Friendship state machine between the current user (me) and another user
 (them):
 
-| State | Button label(s) on their profile | Action |
-|---|---|---|
-| none | "Add friend" | send request → `pending_outgoing` |
-| pending_outgoing | "Cancel request" | delete request → `none` |
+| State            | Button label(s) on their profile      | Action                               |
+| ---------------- | ------------------------------------- | ------------------------------------ |
+| none             | "Add friend"                          | send request → `pending_outgoing`    |
+| pending_outgoing | "Cancel request"                      | delete request → `none`              |
 | pending_incoming | "Accept request", "Decline" **(new)** | accept → `friends`; decline → `none` |
-| friends | "Unfriend" | delete friendship → `none` |
+| friends          | "Unfriend"                            | delete friendship → `none`           |
 
 - **F-45** The friend button on another user's profile reflects the current
   state above. The server returns a **state enum**, not button text; labels
@@ -244,17 +269,18 @@ Friendship state machine between the current user (me) and another user
   only hid the textarea). `[api][e2e]`
 - **F-67** A post contains text (1–2 000 characters after trimming); empty
   posts cannot be sent. `[unit][api]`
-- **F-68** **(new, optional — see open decisions)** A post may additionally
-  contain one image following the upload rules (legacy had an unused
-  `feed_imageurl` column).
+- **F-68** **Dropped for v1
+  ([ADR-0011](architecture/adr/0011-scope-wall-visibility-and-v1-exclusions.md)).**
+  Posts are text only: no image column, no image UI, no test. (Originally
+  proposed as optional: one image per post following the upload rules; legacy
+  had an unused `feed_imageurl` column.)
 - **F-69** Each post shows the author's avatar and name (linked to their
   profile), the text, and a relative timestamp ("5 minutes ago") with the
   absolute date in a `<time datetime>` element. `[e2e]`
 - **F-70** Posts are ordered newest first and paginated (cursor-based, 20 per
   page, "Load older posts" button or infinite scroll). **(new)** `[api][e2e]`
 - **F-71** A post can be deleted by its author or by the wall owner — nobody
-  else. The delete button is only shown to them; the server enforces it with
-  403. A confirmation is asked. `[api][e2e]`
+  else. The delete button is only shown to them; the server enforces it with 403. A confirmation is asked. `[api][e2e]`
 - **F-72** New and deleted posts appear in real time only for viewers of that
   specific wall (socket room per wall). `[e2e]`
 - **F-73** A user's unsent draft is never cleared by incoming posts from other
@@ -302,7 +328,7 @@ Friendship state machine between the current user (me) and another user
 - **F-88** Users who join appear in real time without duplicates. `[e2e]`
 - **F-89** Empty state: "Nobody else is online right now." `[e2e]`
 - **F-90** Presence events carry only public fields (`id, firstName,
-  lastName, avatarUrl`). `[api]`
+lastName, avatarUrl`). `[api]`
 - **F-91** Presence is stored in Redis (keyed by user id with a set of socket
   ids) so it works with multiple server instances and survives a restart.
   **(new)** `[unit]`
@@ -310,6 +336,7 @@ Friendship state machine between the current user (me) and another user
 ## 12. Layout, navigation, about page and cross-cutting quality
 
 ### Header and navigation
+
 - **F-92** The header shows the logo (link to `/`), the search, the main
   navigation (Profile, Friends, Online, Chat), the user's avatar and a
   "Log out" button. `[e2e]`
@@ -320,6 +347,7 @@ Friendship state machine between the current user (me) and another user
   "MENU" box did nothing. **(new)** `[e2e][a11y]`
 
 ### Welcome / about
+
 - **F-95** The welcome area has a two-column layout on large screens (brand
   panel + form) and a single column on small screens. `[e2e]`
 - **F-96** Login, registration and about are reachable from each other via
@@ -330,6 +358,7 @@ Friendship state machine between the current user (me) and another user
   `[e2e]`
 
 ### Responsiveness and design
+
 - **F-98** All pages work from 320 px to 1 920 px width without horizontal
   scrolling or overlapping elements. **(new)** `[e2e]`
 - **F-99** All colours, spacing, radii and typography come from the maw design
@@ -337,6 +366,7 @@ Friendship state machine between the current user (me) and another user
   **(new)** `[lint]`
 
 ### Accessibility (WCAG 2.2 AA) **(new)**
+
 - **F-100** axe reports no serious or critical violations on any page. `[a11y]`
 - **F-101** All images have meaningful `alt` text (avatars: "<name>'s profile
   picture"; decorative images `alt=""`). `[a11y]`
@@ -348,6 +378,7 @@ Friendship state machine between the current user (me) and another user
   respects `prefers-reduced-motion`. `[a11y]`
 
 ### Loading, error and empty states **(new)**
+
 - **F-105** Every data view has explicit loading, error (with "Try again") and
   empty states; a blank screen is never shown. `[e2e]`
 - **F-106** All API errors use RFC 9457 problem+json
@@ -361,6 +392,7 @@ Friendship state machine between the current user (me) and another user
   locale/timezone. `[unit]`
 
 ### Security and operations **(new)**
+
 - **F-109** Security headers via helmet, including a strict CSP that allows
   images only from self and the configured storage origin. `[api]`
 - **F-110** All configuration (ports, origins, DB URL, Redis URL, S3
@@ -375,8 +407,9 @@ Friendship state machine between the current user (me) and another user
   never crash the server. `[unit][api]`
 - **F-113** Structured logging (pino) without passwords, session contents,
   message text or other personal data; request ids are logged. `[unit]`
-- **F-114** `GET /api/health` returns 200 when the DB and Redis are reachable.
-  **(new)** `[api]`
+- **F-114** `GET /api/health` returns 200 when the DB and Redis are reachable
+  and 503 otherwise. It is an alias of the readiness probe `GET /health/ready`;
+  `GET /health/live` is the liveness probe (ADR-0002). **(new)** `[api]`
 - **F-115** Seed script creates demo users, friendships, posts and chat
   messages for local development and E2E tests. **(new)**
 
@@ -386,116 +419,135 @@ Friendship state machine between the current user (me) and another user
 
 ### Legacy schema (`social.sql`)
 
-| Table | Columns | Notes |
-|---|---|---|
-| `social` (users) | `id SERIAL PK`, `first VARCHAR(500) NOT NULL`, `last VARCHAR(500) NOT NULL`, `email VARCHAR(500) UNIQUE NOT NULL`, `password VARCHAR(500) NOT NULL`, `imageurl VARCHAR(500)`, `usersbio TEXT`, `created_at TIMESTAMP DEFAULT now` | email uniqueness case-sensitive |
-| `friendships` | `id SERIAL PK`, `sender_id INT NOT NULL → social(id)`, `receiver_id INT NOT NULL → social(id)`, `accepted BOOLEAN DEFAULT false` | no unique pair, no self check, no indexes, no timestamps |
-| `chat` | `id SERIAL PK`, `sender_id INT NOT NULL → social(id)`, `chat_message TEXT NOT NULL`, `created_at TIMESTAMP` | single global room |
-| `feed` (wall posts) | `id SERIAL PK`, `sender_id INT NOT NULL → social(id)`, `receiver_id INT NOT NULL → social(id)`, `feed_text TEXT`, `feed_imageurl VARCHAR(500)`, `created_at TIMESTAMP` | `feed_imageurl` never written |
+| Table               | Columns                                                                                                                                                                                                                           | Notes                                                    |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `social` (users)    | `id SERIAL PK`, `first VARCHAR(500) NOT NULL`, `last VARCHAR(500) NOT NULL`, `email VARCHAR(500) UNIQUE NOT NULL`, `password VARCHAR(500) NOT NULL`, `imageurl VARCHAR(500)`, `usersbio TEXT`, `created_at TIMESTAMP DEFAULT now` | email uniqueness case-sensitive                          |
+| `friendships`       | `id SERIAL PK`, `sender_id INT NOT NULL → social(id)`, `receiver_id INT NOT NULL → social(id)`, `accepted BOOLEAN DEFAULT false`                                                                                                  | no unique pair, no self check, no indexes, no timestamps |
+| `chat`              | `id SERIAL PK`, `sender_id INT NOT NULL → social(id)`, `chat_message TEXT NOT NULL`, `created_at TIMESTAMP`                                                                                                                       | single global room                                       |
+| `feed` (wall posts) | `id SERIAL PK`, `sender_id INT NOT NULL → social(id)`, `receiver_id INT NOT NULL → social(id)`, `feed_text TEXT`, `feed_imageurl VARCHAR(500)`, `created_at TIMESTAMP`                                                            | `feed_imageurl` never written                            |
 
 ### Target schema (Drizzle migrations)
 
-| Table | Columns and constraints |
-|---|---|
-| `users` | `id bigint identity PK`, `first_name text NOT NULL CHECK (length 1–100)`, `last_name text NOT NULL CHECK (1–100)`, `email citext NOT NULL UNIQUE`, `password_hash text NOT NULL`, `bio text NULL CHECK (length ≤ 1000)`, `avatar_key text NULL`, `created_at timestamptz NOT NULL DEFAULT now()`, `updated_at timestamptz NOT NULL DEFAULT now()`; index for prefix search on `lower(first_name)`, `lower(last_name)` (`text_pattern_ops`) or `pg_trgm` |
-| `friendships` | `id bigint identity PK`, `requester_id → users ON DELETE CASCADE`, `addressee_id → users ON DELETE CASCADE`, `status friendship_status ('pending','accepted') NOT NULL DEFAULT 'pending'`, `created_at`, `accepted_at timestamptz NULL`; `CHECK (requester_id <> addressee_id)`; `UNIQUE (LEAST(requester_id, addressee_id), GREATEST(requester_id, addressee_id))`; indexes on `requester_id`, `addressee_id` |
-| `chat_messages` | `id bigint identity PK`, `author_id → users ON DELETE CASCADE`, `body text NOT NULL CHECK (length 1–1000)`, `created_at timestamptz NOT NULL DEFAULT now()`; index `(created_at DESC, id DESC)` |
-| `wall_posts` | `id bigint identity PK`, `wall_owner_id → users ON DELETE CASCADE`, `author_id → users ON DELETE CASCADE`, `body text NOT NULL CHECK (length 1–2000)`, `image_key text NULL`, `created_at timestamptz NOT NULL DEFAULT now()`; index `(wall_owner_id, created_at DESC, id DESC)` |
-| sessions | stored in Redis (`connect-redis`), not in Postgres |
+Amended by ADR-0002 and [ADR-0007](architecture/adr/0007-data-model-conventions.md):
+`integer` identity keys instead of `bigint`, `text` email with a unique index
+on `lower(email)` instead of `citext`, `timestamptz(3)`, and no wall image
+column (F-68 dropped, ADR-0011). [DATA-MODEL.md](architecture/DATA-MODEL.md)
+holds the exact Drizzle schema, CHECK constraints and index names.
 
-Store object **keys**, not full URLs; the public URL is built from
-configuration so the storage host can change without a data migration.
+| Table           | Columns and constraints                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `users`         | `id integer identity PK`, `first_name text NOT NULL CHECK (length 1–100, trimmed)`, `last_name text NOT NULL CHECK (1–100, trimmed)`, `email text NOT NULL CHECK (stored lower-cased, length 3–254)` with `UNIQUE INDEX ON lower(email)`, `password_hash text NOT NULL`, `bio text NULL CHECK (length 1–1000)`, `avatar_key text NULL CHECK (server-generated key format)`, `created_at timestamptz(3) NOT NULL DEFAULT now()`, `updated_at timestamptz(3) NOT NULL DEFAULT now()`; prefix-search indexes on `lower(first_name)`, `lower(last_name)` and `lower(first_name \|\| ' ' \|\| last_name)` (`text_pattern_ops`) |
+| `friendships`   | `id integer identity PK`, `requester_id integer → users ON DELETE CASCADE`, `addressee_id integer → users ON DELETE CASCADE`, `status friendship_status ('pending','accepted') NOT NULL DEFAULT 'pending'`, `created_at timestamptz(3) NOT NULL DEFAULT now()`, `accepted_at timestamptz(3) NULL`; `CHECK (requester_id <> addressee_id)`; `CHECK ((status = 'accepted') = (accepted_at IS NOT NULL))`; `UNIQUE (LEAST(requester_id, addressee_id), GREATEST(requester_id, addressee_id))`; indexes on `(requester_id, status)`, `(addressee_id, status)`                                                                 |
+| `chat_messages` | `id integer identity PK`, `author_id integer → users ON DELETE CASCADE`, `body text NOT NULL CHECK (length 1–1000, trimmed)`, `created_at timestamptz(3) NOT NULL DEFAULT now()`; indexes `(created_at DESC, id DESC)`, `author_id`                                                                                                                                                                                                                                                                                                                                                                                       |
+| `wall_posts`    | `id integer identity PK`, `wall_owner_id integer → users ON DELETE CASCADE`, `author_id integer → users ON DELETE CASCADE`, `body text NOT NULL CHECK (length 1–2000, trimmed)`, `created_at timestamptz(3) NOT NULL DEFAULT now()`; indexes `(wall_owner_id, created_at DESC, id DESC)`, `author_id`; no image column (F-68 dropped)                                                                                                                                                                                                                                                                                     |
+| sessions        | stored in Redis (`connect-redis`), not in Postgres                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+
+Store object **keys**, not URLs. Avatars are served through the stable,
+session-protected route `GET /api/users/:id/avatar`
+([ADR-0010](architecture/adr/0010-avatar-upload-pipeline.md)), so the storage
+host can change without a data migration.
 
 ## Appendix B: Endpoints and real-time events
 
 ### Legacy HTTP routes (`index.js`)
 
-| Method + path | Purpose | Auth check in legacy |
-|---|---|---|
-| `POST /register` | create user, log in | – |
-| `POST /login` | log in | – |
-| `GET /logout` | clear session, redirect `/` | – |
-| `GET /users` | own full user row | none |
-| `POST /usersbio` | update own bio | none |
-| `POST /upload` | multipart `file` → S3 → set `imageurl` | none |
-| `GET /profile/:id` | full user row of any user | none |
-| `GET /status/:otherProfileId` | friend button label | none |
-| `POST /makeRequest/:id`, `/cancelRequest/:id`, `/acceptFriendship/:id`, `/endFriendship/:id` | friendship actions, return button label | none |
-| `GET /friendsOrWanabees` | friends + incoming requests | none |
-| `GET /welcome`, `GET *` | serve SPA shell, redirect by session | session check |
+| Method + path                                                                                | Purpose                                 | Auth check in legacy |
+| -------------------------------------------------------------------------------------------- | --------------------------------------- | -------------------- |
+| `POST /register`                                                                             | create user, log in                     | –                    |
+| `POST /login`                                                                                | log in                                  | –                    |
+| `GET /logout`                                                                                | clear session, redirect `/`             | –                    |
+| `GET /users`                                                                                 | own full user row                       | none                 |
+| `POST /usersbio`                                                                             | update own bio                          | none                 |
+| `POST /upload`                                                                               | multipart `file` → S3 → set `imageurl`  | none                 |
+| `GET /profile/:id`                                                                           | full user row of any user               | none                 |
+| `GET /status/:otherProfileId`                                                                | friend button label                     | none                 |
+| `POST /makeRequest/:id`, `/cancelRequest/:id`, `/acceptFriendship/:id`, `/endFriendship/:id` | friendship actions, return button label | none                 |
+| `GET /friendsOrWanabees`                                                                     | friends + incoming requests             | none                 |
+| `GET /welcome`, `GET *`                                                                      | serve SPA shell, redirect by session    | session check        |
 
 ### Legacy socket events
 
-| Direction | Event | Payload |
-|---|---|---|
-| server → new socket | `onlineUsers` | list of online users |
-| server → others | `userJoined` / server → all `userLeft` | full user row |
-| server → **all** | `showChat` | last 10 messages (sent on every connection) |
-| client → server / server → all | `newMessage` | text / message object |
-| client → server / server → **all** | `allPosts` | profile id / all posts of that wall |
-| client → server / server → all | `newPost` | `{profileId, message}` / post object |
-| client → server / server → all | `deletePost` | post id |
-| client → server / server → caller | `searchUser` | `{searchInput}` / first match |
+| Direction                          | Event                                  | Payload                                     |
+| ---------------------------------- | -------------------------------------- | ------------------------------------------- |
+| server → new socket                | `onlineUsers`                          | list of online users                        |
+| server → others                    | `userJoined` / server → all `userLeft` | full user row                               |
+| server → **all**                   | `showChat`                             | last 10 messages (sent on every connection) |
+| client → server / server → all     | `newMessage`                           | text / message object                       |
+| client → server / server → **all** | `allPosts`                             | profile id / all posts of that wall         |
+| client → server / server → all     | `newPost`                              | `{profileId, message}` / post object        |
+| client → server / server → all     | `deletePost`                           | post id                                     |
+| client → server / server → caller  | `searchUser`                           | `{searchInput}` / first match               |
 
-### Target HTTP API (all under `/api`, JSON, Zod contract in `packages/shared`)
+### Target HTTP API (JSON under `/api`, Zod contract in `packages/shared`)
 
-| Method + path | Purpose |
-|---|---|
-| `GET /csrf` | issue CSRF token |
-| `POST /auth/register` | register + start session (201) |
-| `POST /auth/login` | log in (200 / 401 / 429) |
-| `POST /auth/logout` | log out (204) |
-| `GET /me` | current user |
-| `PATCH /me` | update bio |
-| `PUT /me/avatar` | upload avatar (multipart, field `avatar`) |
-| `GET /users/:id` | public profile + `friendship` state |
-| `GET /users/search?q=&limit=` | search |
-| `GET /friendships` | `{ friends, incoming, outgoing }` |
-| `POST /friendships` `{ userId }` | send request |
-| `POST /friendships/:userId/accept` | accept |
-| `DELETE /friendships/:userId` | cancel / decline / unfriend |
-| `GET /users/:id/posts?cursor=` | wall posts page |
-| `POST /users/:id/posts` | create post |
-| `DELETE /posts/:id` | delete post |
-| `GET /chat/messages?cursor=` | chat history page |
-| `GET /health` | health check |
+Amended by ADR-0002: CSRF at `/api/csrf-token`, health probes at
+`/health/live` and `/health/ready` plus `/api/health`, and the initial
+presence list over HTTP instead of a socket event. Ids are positive
+integers. [API.md](architecture/API.md) holds the request and response types,
+status codes and limits.
 
-### Target socket events (socket.io 4, authenticated handshake)
+| Method + path                          | Purpose                                                                            |
+| -------------------------------------- | ---------------------------------------------------------------------------------- |
+| `GET /health/live`                     | liveness probe (outside `/api`)                                                    |
+| `GET /health/ready`                    | readiness probe: DB and Redis reachable (outside `/api`)                           |
+| `GET /api/health`                      | alias of `/health/ready` (F-114)                                                   |
+| `GET /api/csrf-token`                  | issue CSRF token                                                                   |
+| `POST /api/auth/register`              | register + start session (201)                                                     |
+| `POST /api/auth/login`                 | log in (200 / 401 / 429)                                                           |
+| `POST /api/auth/logout`                | log out (204)                                                                      |
+| `GET /api/me`                          | current user                                                                       |
+| `PATCH /api/me`                        | update bio                                                                         |
+| `PUT /api/me/avatar`                   | upload avatar (multipart, field `avatar`)                                          |
+| `GET /api/users/search?q=&limit=`      | search                                                                             |
+| `GET /api/users/:id`                   | public profile + `relationship` (friendship state, `canViewWall`, `canPostOnWall`) |
+| `GET /api/users/:id/avatar`            | the user's current avatar (`image/webp`)                                           |
+| `GET /api/friendships`                 | `{ friends, incoming, outgoing }`                                                  |
+| `POST /api/friendships` `{ userId }`   | send request                                                                       |
+| `POST /api/friendships/:userId/accept` | accept                                                                             |
+| `DELETE /api/friendships/:userId`      | cancel / decline / unfriend                                                        |
+| `GET /api/users/:id/posts?cursor=`     | wall posts page                                                                    |
+| `POST /api/users/:id/posts`            | create post                                                                        |
+| `DELETE /api/posts/:id`                | delete post                                                                        |
+| `GET /api/chat/messages?cursor=`       | chat history page                                                                  |
+| `GET /api/presence`                    | online users (initial list; replaces the `presence:list` event)                    |
 
-| Direction | Event | Payload / scope |
-|---|---|---|
-| server → client | `presence:list` | online users (on connect) |
-| server → others | `presence:joined` / `presence:left` | public user (first / last connection only) |
-| client → server (ack) | `chat:send` | `{ body }` → ack `{ ok, message }` or `{ ok: false, error }` |
-| server → room `chat` | `chat:message` | message with `id`, author, `createdAt` |
-| client → server | `wall:join` / `wall:leave` | `{ userId }` (server checks read permission) |
-| server → room `wall:<id>` | `wall:post-created` / `wall:post-deleted` | post / `{ id }` |
-| server → user room `user:<id>` | `friendship:changed` | `{ userId, state }` **(new)** |
+### Target socket events (socket.io 4 on `/socket.io`, WebSocket only, authenticated handshake)
+
+| Direction                      | Event                                     | Payload / scope                                                    |
+| ------------------------------ | ----------------------------------------- | ------------------------------------------------------------------ |
+| server → others                | `presence:joined`                         | `UserSummary` (first connection only)                              |
+| server → others                | `presence:left`                           | `{ userId }` (after the last connection and the grace period)      |
+| client → server (ack)          | `chat:send`                               | `{ body }` → ack `{ ok: true, message }` or `{ ok: false, error }` |
+| server → room `chat`           | `chat:message`                            | message with `id`, author, `createdAt`                             |
+| client → server (ack)          | `wall:join` / `wall:leave`                | `{ userId }` (server checks read permission on join)               |
+| server → room `wall:<id>`      | `wall:post-created` / `wall:post-deleted` | post / `{ id, wallOwnerId }`                                       |
+| server → user room `user:<id>` | `friendship:changed`                      | `{ userId, state }` **(new)**                                      |
 
 ## Appendix C: Upload rules
 
-| Rule | Value |
-|---|---|
-| Allowed types | JPEG, PNG, WebP, GIF — detected from magic bytes, not from the client MIME type or file extension |
-| Maximum size | 2 MB (legacy limit), enforced while streaming (multer `limits.fileSize`) → 413 |
-| Files per request | 1; other fields rejected |
-| Processing **(new)** | re-encode with `sharp` to WebP, max 512×512, strip EXIF/GPS metadata |
-| Object key | server-generated (`avatars/<userId>/<uuid>.webp`); original filename ignored |
-| Content-Type on storage | set from detected type, plus `Content-Disposition: inline` and `X-Content-Type-Options: nosniff` via the serving layer |
-| Storage | S3-compatible (MinIO locally) via AWS SDK v3; bucket, endpoint and public base URL from env |
-| Temp files | none on disk (memory/stream) or always cleaned up, also on error |
-| Errors | 400 no file, 413 too large, 415 wrong type, 500 storage failure — all problem+json |
-| Auth | only the logged-in user, only for their own avatar, CSRF-protected |
+| Rule                    | Value                                                                                                                                                                      |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Allowed types           | JPEG, PNG, WebP, GIF — detected from magic bytes, not from the client MIME type or file extension                                                                          |
+| Maximum size            | 2 MB (legacy limit), enforced while streaming (multer `limits.fileSize`) → 413                                                                                             |
+| Files per request       | 1; other fields rejected                                                                                                                                                   |
+| Processing **(new)**    | re-encode with `sharp` to WebP, max 512×512, strip EXIF/GPS metadata                                                                                                       |
+| Object key              | server-generated (`avatars/<userId>/<uuid>.webp`); original filename ignored                                                                                               |
+| Content-Type on storage | set from detected type, plus `Content-Disposition: inline` and `X-Content-Type-Options: nosniff` via the serving layer                                                     |
+| Storage                 | S3-compatible (MinIO locally) via AWS SDK v3, private bucket; bucket and endpoint from env; served through `GET /api/users/:id/avatar`, not a public bucket URL (ADR-0010) |
+| Temp files              | none on disk (memory/stream) or always cleaned up, also on error                                                                                                           |
+| Errors                  | 400 no file, 413 too large, 415 wrong type, 500 storage failure — all problem+json                                                                                         |
+| Auth                    | only the logged-in user, only for their own avatar, CSRF-protected                                                                                                         |
 
 ## 13. Open decisions and out of scope
 
-To be settled in the architecture phase (ADRs):
+All four decisions were settled in
+[ADR-0011](architecture/adr/0011-scope-wall-visibility-and-v1-exclusions.md):
 
-- Wall image posts (F-68): implement or drop the column.
-- Wall visibility (F-65): friends-only (proposed) vs. all logged-in users
-  (legacy).
-- Private 1:1 messages: the legacy README promises "chat with them", but only
-  a global room exists. Proposed: out of scope for v1.
+- Wall image posts (F-68): **dropped for v1**; there is no image column.
+- Wall visibility (F-65): **friends-only** (owner and accepted friends read
+  and write), not all logged-in users as in legacy.
+- Private 1:1 messages: **out of scope for v1**. Only the global room exists;
+  the README does not promise private chat.
 - Password reset, email verification, account deletion, editing name/email:
-  not in legacy; proposed out of scope for v1 except account deletion if
-  time permits.
+  **out of scope for v1**. Foreign keys cascade on user deletion, so account
+  deletion can be added later as one endpoint.

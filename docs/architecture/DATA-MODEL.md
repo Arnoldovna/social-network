@@ -53,15 +53,15 @@ erDiagram
 
 ## Conventions
 
-| Topic | Rule |
-|---|---|
-| Primary keys | `integer GENERATED ALWAYS AS IDENTITY`. 2^31 rows per table is far beyond the scope of this app; JS numbers stay exact; `req.session.userId: number`. |
-| Timestamps | `timestamptz(3) NOT NULL DEFAULT now()` (millisecond precision, the same as a JS `Date`, so a keyset cursor round-trips exactly, ADR-0014); stored in UTC, formatted in the client with `Intl` (F-108, B-69). |
-| Text | `text` + `CHECK (char_length(...) BETWEEN x AND y)` with the same limits as the Zod schemas in `packages/shared` (B-65). Values are trimmed by Zod and the DB rejects untrimmed values, so the invariant holds even for code paths that skip Zod (seed, future scripts). |
-| Foreign keys | Explicit `ON DELETE CASCADE` for everything owned by a user (B-67). No account deletion in v1, but the schema is ready for it. |
-| Indexes | One composite index per keyset ordering, one index per FK that is filtered on, expression indexes for case-insensitive lookups (B-68). |
-| Names | `users`, `friendships`, `wall_posts`, `chat_messages`; columns describe their content (B-64). |
-| Row types | `typeof table.$inferSelect` stays inside repositories; HTTP and socket layers only see DTOs from `packages/shared` (B-19). |
+| Topic        | Rule                                                                                                                                                                                                                                                                     |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Primary keys | `integer GENERATED ALWAYS AS IDENTITY`. 2^31 rows per table is far beyond the scope of this app; JS numbers stay exact; `req.session.userId: number`.                                                                                                                    |
+| Timestamps   | `timestamptz(3) NOT NULL DEFAULT now()` (millisecond precision, the same as a JS `Date`, so a keyset cursor round-trips exactly, ADR-0014); stored in UTC, formatted in the client with `Intl` (F-108, B-69).                                                            |
+| Text         | `text` + `CHECK (char_length(...) BETWEEN x AND y)` with the same limits as the Zod schemas in `packages/shared` (B-65). Values are trimmed by Zod and the DB rejects untrimmed values, so the invariant holds even for code paths that skip Zod (seed, future scripts). |
+| Foreign keys | Explicit `ON DELETE CASCADE` for everything owned by a user (B-67). No account deletion in v1, but the schema is ready for it.                                                                                                                                           |
+| Indexes      | One composite index per keyset ordering, one index per FK that is filtered on, expression indexes for case-insensitive lookups (B-68).                                                                                                                                   |
+| Names        | `users`, `friendships`, `wall_posts`, `chat_messages`; columns describe their content (B-64).                                                                                                                                                                            |
+| Row types    | `typeof table.$inferSelect` stays inside repositories; HTTP and socket layers only see DTOs from `packages/shared` (B-19).                                                                                                                                               |
 
 ## Schema (`apps/api/src/db/schema/*.ts`)
 
@@ -161,12 +161,12 @@ export const friendships = pgTable(
 
 State derivation (repository → service, never stored as text, B-53):
 
-| Row between me and them | `FriendshipState` (from my point of view) |
-|---|---|
-| none | `none` |
-| `pending`, `requester_id = me` | `pending_outgoing` |
-| `pending`, `addressee_id = me` | `pending_incoming` |
-| `accepted` | `friends` |
+| Row between me and them        | `FriendshipState` (from my point of view) |
+| ------------------------------ | ----------------------------------------- |
+| none                           | `none`                                    |
+| `pending`, `requester_id = me` | `pending_outgoing`                        |
+| `pending`, `addressee_id = me` | `pending_incoming`                        |
+| `accepted`                     | `friends`                                 |
 
 ### `wall-posts.ts`
 
@@ -255,29 +255,30 @@ ALTER TABLE "friendships" ADD CONSTRAINT "friendships_requester_id_users_id_fk" 
 Columns are named explicitly and `casing` is not configured, which removes the known drizzle-kit risk of
 rendering camelCase names inside `sql` templates of checks and expression indexes when `casing: 'snake_case'` is
 set. If the generated SQL still deviates from the checklist, fix the schema rather than hand-editing the migration.
-The integration test suite applies the migrations to a fresh Postgres 18 container on every run, so a broken
-migration fails CI.
+The integration test suite applies the migrations to a fresh Postgres 18 container (template database) on every
+run, so a broken migration fails CI. Until 1b generates `0000_init.sql`, the schema index is `export {};` and the
+journal has no entries (Phase 1a skeleton, conventions §3).
 
 ## Key queries (repository level)
 
-| Use | Query shape | Index used |
-|---|---|---|
-| Login | `select id, password_hash … where lower(email) = $1` (one query, B-14) | `users_email_lower_idx` |
-| Public user | `select id, first_name, last_name, bio, avatar_key … where id = $1` (explicit columns, B-19) | PK |
-| Search (F-60, F-61) | `where id <> $me and (lower(first_name) like $p escape '\' or lower(last_name) like $p escape '\' or lower(first_name \|\| ' ' \|\| last_name) like $p escape '\') order by lower(first_name), lower(last_name), id limit $n`; `$p` = escaped lower-cased trimmed query + `%` (B-74) | the three prefix indexes |
-| Friendship between a and b | `where least(requester_id, addressee_id) = least($a,$b) and greatest(...) = greatest($a,$b)` | `friendships_pair_idx` |
-| Send request | `insert … on conflict do nothing returning id`; no row → 409 (B-25) | pair index |
-| Accept | `update … set status='accepted', accepted_at=now() where requester_id=$them and addressee_id=$me and status='pending' returning id`; no row → 404 (B-26) | `friendships_requester_status_idx` |
-| Cancel / decline / unfriend | `delete … where <pair = (me, them)> returning status, requester_id`; no row → 404 | pair index |
-| Friends page | three selects joined to `users` (accepted either direction, pending incoming, pending outgoing), ordered by name | requester/addressee status indexes |
-| Wall page (F-70) | `select p.id, p.wall_owner_id, p.body, p.created_at, a.<public cols> from wall_posts p join users a on a.id = p.author_id where p.wall_owner_id = $owner and (p.created_at, p.id) < ($t, $id) order by p.created_at desc, p.id desc limit $n + 1`; `$t` is the cursor's millisecond timestamp, exact because the column is `timestamptz(3)` | `wall_posts_wall_created_idx` |
-| Set avatar (F-37, F-39) | `UPDATE users SET avatar_key = $new WHERE id = $me RETURNING OLD.avatar_key AS old_key, NEW.id, NEW.first_name, NEW.last_name, NEW.bio, NEW.avatar_key` (Postgres 18 `OLD`/`NEW` in `RETURNING`, through `sql`); atomic, so concurrent uploads each get the key they replaced | PK |
-| Avatar route | `select avatar_key from users where id = $1` per image request | PK |
-| Create post (B-41, B-75) | one CTE: `with ins as (insert … returning *) select ins.*, a.<public cols> from ins join users a on a.id = ins.author_id` | – |
-| Delete post (B-21) | `delete from wall_posts where id = $id and (author_id = $me or wall_owner_id = $me) returning id, wall_owner_id`; on no row, a second `select` decides 404 vs 403 | PK |
-| Chat page (F-82) | like the wall page on `chat_messages` | `chat_messages_created_idx` |
-| Create chat message (B-47) | CTE `insert … returning` + join author | – |
-| Presence list | `select <public cols> from users where id = any($ids)` (one query per `GET /api/presence`) | PK |
+| Use                         | Query shape                                                                                                                                                                                                                                                                                                                                 | Index used                         |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| Login                       | `select id, password_hash … where lower(email) = $1` (one query, B-14)                                                                                                                                                                                                                                                                      | `users_email_lower_idx`            |
+| Public user                 | `select id, first_name, last_name, bio, avatar_key … where id = $1` (explicit columns, B-19)                                                                                                                                                                                                                                                | PK                                 |
+| Search (F-60, F-61)         | `where id <> $me and (lower(first_name) like $p escape '\' or lower(last_name) like $p escape '\' or lower(first_name \|\| ' ' \|\| last_name) like $p escape '\') order by lower(first_name), lower(last_name), id limit $n`; `$p` = escaped lower-cased trimmed query + `%` (B-74)                                                        | the three prefix indexes           |
+| Friendship between a and b  | `where least(requester_id, addressee_id) = least($a,$b) and greatest(...) = greatest($a,$b)`                                                                                                                                                                                                                                                | `friendships_pair_idx`             |
+| Send request                | `insert … on conflict do nothing returning id`; no row → 409 (B-25)                                                                                                                                                                                                                                                                         | pair index                         |
+| Accept                      | `update … set status='accepted', accepted_at=now() where requester_id=$them and addressee_id=$me and status='pending' returning id`; no row → 404 (B-26)                                                                                                                                                                                    | `friendships_requester_status_idx` |
+| Cancel / decline / unfriend | `delete … where <pair = (me, them)> returning status, requester_id`; no row → 404                                                                                                                                                                                                                                                           | pair index                         |
+| Friends page                | three selects joined to `users` (accepted either direction, pending incoming, pending outgoing), ordered by name                                                                                                                                                                                                                            | requester/addressee status indexes |
+| Wall page (F-70)            | `select p.id, p.wall_owner_id, p.body, p.created_at, a.<public cols> from wall_posts p join users a on a.id = p.author_id where p.wall_owner_id = $owner and (p.created_at, p.id) < ($t, $id) order by p.created_at desc, p.id desc limit $n + 1`; `$t` is the cursor's millisecond timestamp, exact because the column is `timestamptz(3)` | `wall_posts_wall_created_idx`      |
+| Set avatar (F-37, F-39)     | `UPDATE users SET avatar_key = $new WHERE id = $me RETURNING OLD.avatar_key AS old_key, NEW.id, NEW.first_name, NEW.last_name, NEW.bio, NEW.avatar_key` (Postgres 18 `OLD`/`NEW` in `RETURNING`, through `sql`); atomic, so concurrent uploads each get the key they replaced                                                               | PK                                 |
+| Avatar route                | `select avatar_key from users where id = $1` per image request                                                                                                                                                                                                                                                                              | PK                                 |
+| Create post (B-41, B-75)    | one CTE: `with ins as (insert … returning *) select ins.*, a.<public cols> from ins join users a on a.id = ins.author_id`                                                                                                                                                                                                                   | –                                  |
+| Delete post (B-21)          | `delete from wall_posts where id = $id and (author_id = $me or wall_owner_id = $me) returning id, wall_owner_id`; on no row, a second `select` decides 404 vs 403                                                                                                                                                                           | PK                                 |
+| Chat page (F-82)            | like the wall page on `chat_messages`                                                                                                                                                                                                                                                                                                       | `chat_messages_created_idx`        |
+| Create chat message (B-47)  | CTE `insert … returning` + join author                                                                                                                                                                                                                                                                                                      | –                                  |
+| Presence list               | `select <public cols> from users where id = any($ids)` (one query per `GET /api/presence`)                                                                                                                                                                                                                                                  | PK                                 |
 
 ## Migrations
 
@@ -291,7 +292,8 @@ migration fails CI.
   phase by one agent only (migrations are sequential and cannot be generated in parallel).
 - Local: `pnpm db:migrate` (tsx, `.env`). Docker / CI e2e: the one-shot `migrate` compose service runs
   `node dist/db/migrate.js` before `api` starts. Integration tests: `test/global-setup.ts` runs the migrations
-  against the Testcontainers database.
+  against the template database `social_network_template` in the Testcontainers Postgres, and every test file gets
+  its own clone (conventions §7).
 - The app process never migrates on boot.
 
 ## Seed plan (`apps/api/src/db/seed/`)
@@ -301,19 +303,25 @@ E2E tests create their own users through the API (see ADR-0016), so they never d
 
 ### Rules
 
-- Idempotent: if the demo user already exists the script logs "already seeded" and exits 0.
-  `pnpm db:seed -- --reset` truncates the four tables (`TRUNCATE … RESTART IDENTITY CASCADE`) and deletes the
-  `avatars/` prefix first; refused unless `NODE_ENV` is `development` or `test`. Integration tests never truncate;
-  every test file, `seed.int.test.ts` included, runs against its own database cloned from the migrated template
-  (ADR-0016, conventions §7).
-- Entry point `src/db/seed/index.ts` (the root `db:seed` script points there, not at the template's
-  `src/db/seed.ts`).
-- Runs only with an explicit `SEED_ALLOW=true` (set by the `db:seed` script and the compose `seed` service; the
-  guard never relies on `NODE_ENV`, conventions §8). The compose `seed` service runs the production API image with
-  `NODE_ENV=production` and `SEED_ALLOW: 'true'`, so the demo and e2e stacks are seeded too.
+- Idempotent and insert-only: if the demo user already exists the seed logs "already seeded" and exits 0. All rows
+  are written in **one transaction**; avatar objects are put before the commit, so a failed run leaves no demo user
+  and the next run starts over (objects of a failed run stay unreferenced under `avatars/` and are never served).
+- **No reset command** (ADR-0019 §7): the first draft's `--reset` was guarded by `NODE_ENV`, which conventions §8
+  forbids. Resetting local data is `docker compose --profile app down -v` (drops the Postgres and MinIO volumes),
+  then `pnpm dev:setup`. Integration tests never truncate either; every test file, `seed.int.test.ts` included, runs
+  against its own database cloned from the migrated template (ADR-0016, conventions §7).
+- Entry point `src/db/seed/cli.ts` (the `db:seed` script runs it with `tsx --conditions=development
+--env-file-if-exists=../../.env`; the compose `seed` service runs `dist/db/seed/cli.js`; the template's
+  `src/db/seed.ts` is not used). The logic lives in `src/db/seed/index.ts` (`assertSeedAllowed(env)`,
+  `runSeed({ db, storage, password, logger, now })`) without side effects at import, so `seed.int.test.ts` runs it
+  in-process against its own database and the fake storage.
+- Runs only with an explicit `SEED_ALLOW=true` (set per invocation by the `db:seed` script and the compose `seed`
+  service; never an `.env` key; the guard never relies on `NODE_ENV`, conventions §8). The compose `seed` service
+  runs the production API image with `NODE_ENV=production` and `SEED_ALLOW: 'true'`, so the demo and e2e stacks are
+  seeded too.
 - Password for every seeded account comes from `SEED_DEMO_PASSWORD` (min. 12 characters). No password literal in the
   repo. `pnpm setup:env` generates it and prints the demo login; compose refuses to start without it
-  (`${SEED_DEMO_PASSWORD:?…}`). Nothing is copied from the legacy database or legacy code.
+  (`${SEED_DEMO_PASSWORD:?…}`) and passes it to the `seed` service only. E2E specs never log in as a seeded account. Nothing is copied from the legacy database or legacy code.
 - Deterministic: a seeded PRNG (`mulberry32(20261115)`) picks avatar compositions and timestamps, so screenshots are
   reproducible. Timestamps are relative to "now" (spread over the last 42 days), so the app never looks stale.
   Rows are inserted in chronological order, so identity ids and `created_at` agree.
@@ -321,31 +329,32 @@ E2E tests create their own users through the API (see ADR-0016), so they never d
 
 ### Files
 
-| File | Content |
-|---|---|
-| `seed/index.ts` | entry point: env check, connections (db + storage), orchestration, `--reset` |
-| `seed/people.ts` | the 14 people below (names, bios, which ones get an avatar) |
-| `seed/content.ts` | wall post and chat message texts, friendship graph |
-| `seed/avatars.ts` | generated abstract avatar: SVG string → `sharp` → 512×512 WebP → `storage.put('avatars/<id>/<uuid>.webp')` |
+| File              | Content                                                                                                                                                                           |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `seed/cli.ts`     | entry point: reads `process.env`, `assertSeedAllowed`, validates its keys with Zod (key names only on failure), opens the pool and S3 storage, calls `runSeed`, closes, exit code |
+| `seed/index.ts`   | `assertSeedAllowed(env)`, `runSeed(deps)`: "already seeded" check, one transaction, orchestration of the files below                                                              |
+| `seed/people.ts`  | the 14 people below (names, bios, which ones get an avatar)                                                                                                                       |
+| `seed/content.ts` | wall post and chat message texts, friendship graph                                                                                                                                |
+| `seed/avatars.ts` | generated abstract avatar: SVG string → `sharp` → 512×512 WebP → `storage.put('avatars/<id>/<uuid>.webp')`                                                                        |
 
 ### People (fictional; no real persons)
 
-| # | Name | Email | Bio (excerpt) | Avatar |
-|---|---|---|---|---|
-| 1 | **Mira Novak** (demo login) | `mira.novak@example.com` | "Front-end developer in Leipzig. Collects risograph prints and opinions about bike lanes." | generated |
-| 2 | Tomás Ferreira | `tomas.ferreira@example.com` | "Sound engineer by day, bread baker by night. Sourdough starter is called Gil." | generated |
-| 3 | Aiko Tanaka | `aiko.tanaka@example.com` | "Type designer. Currently drawing a grotesque with too many ampersands." | generated |
-| 4 | Noah Brennan | `noah.brennan@example.com` | "Climbing, maps, and the occasional pub quiz win." | none (initials) |
-| 5 | Priya Raman | `priya.raman@example.com` | "Data journalist. Ask me about public transport delays, I have charts." | generated |
-| 6 | Jonas Weber | `jonas.weber@example.com` | "Carpenter learning TypeScript. Both involve measuring twice." | generated |
-| 7 | Amara Okafor | `amara.okafor@example.com` | "Architect, plant hoarder, Sunday market regular." | generated |
-| 8 | Mateo Rossi | `mateo.rossi@example.com` | – (no bio, shows the empty state) | none |
-| 9 | Sofia Lindqvist | `sofia.lindqvist@example.com` | "Illustrator. Draws the neighbourhood one staircase at a time." | generated |
-| 10 | Yusuf Demir | `yusuf.demir@example.com` | "Backend developer and amateur beekeeper. 40,000 colleagues." | generated |
-| 11 | Clara Moreau | `clara.moreau@example.com` | "Translator (FR/DE/EN). Reading three books at once, finishing none." | none |
-| 12 | Ewa Kowalska | `ewa.kowalska@example.com` | "Ceramicist. Mostly glaze tests and slightly wonky cups." | generated |
-| 13 | Daniel Mensah | `daniel.mensah@example.com` | "Teaches maths, plays bass, runs the Thursday board game night." | generated |
-| 14 | Hannah Schulz | `hannah.schulz@example.com` | – | none |
+| #   | Name                        | Email                         | Bio (excerpt)                                                                              | Avatar          |
+| --- | --------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------ | --------------- |
+| 1   | **Mira Novak** (demo login) | `mira.novak@example.com`      | "Front-end developer in Leipzig. Collects risograph prints and opinions about bike lanes." | generated       |
+| 2   | Tomás Ferreira              | `tomas.ferreira@example.com`  | "Sound engineer by day, bread baker by night. Sourdough starter is called Gil."            | generated       |
+| 3   | Aiko Tanaka                 | `aiko.tanaka@example.com`     | "Type designer. Currently drawing a grotesque with too many ampersands."                   | generated       |
+| 4   | Noah Brennan                | `noah.brennan@example.com`    | "Climbing, maps, and the occasional pub quiz win."                                         | none (initials) |
+| 5   | Priya Raman                 | `priya.raman@example.com`     | "Data journalist. Ask me about public transport delays, I have charts."                    | generated       |
+| 6   | Jonas Weber                 | `jonas.weber@example.com`     | "Carpenter learning TypeScript. Both involve measuring twice."                             | generated       |
+| 7   | Amara Okafor                | `amara.okafor@example.com`    | "Architect, plant hoarder, Sunday market regular."                                         | generated       |
+| 8   | Mateo Rossi                 | `mateo.rossi@example.com`     | – (no bio, shows the empty state)                                                          | none            |
+| 9   | Sofia Lindqvist             | `sofia.lindqvist@example.com` | "Illustrator. Draws the neighbourhood one staircase at a time."                            | generated       |
+| 10  | Yusuf Demir                 | `yusuf.demir@example.com`     | "Backend developer and amateur beekeeper. 40,000 colleagues."                              | generated       |
+| 11  | Clara Moreau                | `clara.moreau@example.com`    | "Translator (FR/DE/EN). Reading three books at once, finishing none."                      | none            |
+| 12  | Ewa Kowalska                | `ewa.kowalska@example.com`    | "Ceramicist. Mostly glaze tests and slightly wonky cups."                                  | generated       |
+| 13  | Daniel Mensah               | `daniel.mensah@example.com`   | "Teaches maths, plays bass, runs the Thursday board game night."                           | generated       |
+| 14  | Hannah Schulz               | `hannah.schulz@example.com`   | –                                                                                          | none            |
 
 ### Friendship graph (from Mira's point of view, to show every state)
 
@@ -388,14 +397,14 @@ Compose runs Redis without persistence and with `--maxmemory 128mb --maxmemory-p
 counters carry TTLs and are evicted first; presence keys (no TTL, small) are never evicted. Anonymous sessions
 created by `GET /api/csrf-token` live 2 h, not 7 days.
 
-| Key | Type | TTL | Owner |
-|---|---|---|---|
-| `social-network:sess:<sid>` | string (JSON) | rolling, `SESSION_TTL_DAYS` (7); anonymous (CSRF only) 2 h | express-session / connect-redis |
-| `social-network:rl:<limiter>:<key>` | counters | window | rate-limit-redis (`global`, `auth`, `login-email-ip`, `login-email`, `upload`, `search`, `write`) |
-| `social-network:ws-rl:<event>:<userId>` | counter | window | socket event limiter (`chat:send`, `wall:join`) |
-| `social-network:ws-rl:handshake:<ip>` | counter | 1 min | socket handshake limiter |
-| `social-network:presence:sockets:<userId>` | set of `<instanceId>:<socketId>` | none (cleaned on disconnect and on boot) | presence |
-| `social-network:presence:online` | set of userIds | none | presence |
+| Key                                        | Type                             | TTL                                                        | Owner                                                                                             |
+| ------------------------------------------ | -------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `social-network:sess:<sid>`                | string (JSON)                    | rolling, `SESSION_TTL_DAYS` (7); anonymous (CSRF only) 2 h | express-session / connect-redis                                                                   |
+| `social-network:rl:<limiter>:<key>`        | counters                         | window                                                     | rate-limit-redis (`global`, `auth`, `login-email-ip`, `login-email`, `upload`, `search`, `write`) |
+| `social-network:ws-rl:<event>:<userId>`    | counter                          | window                                                     | socket event limiter (`chat:send`, `wall:join`)                                                   |
+| `social-network:ws-rl:handshake:<ip>`      | counter                          | 1 min                                                      | socket handshake limiter                                                                          |
+| `social-network:presence:sockets:<userId>` | set of `<instanceId>:<socketId>` | none (cleaned on disconnect and on boot)                   | presence                                                                                          |
+| `social-network:presence:online`           | set of userIds                   | none                                                       | presence                                                                                          |
 
 Login limiter keys use `sha256(lower(email))` (`login-email`) and `sha256(lower(email)) + ':' + ip`
 (`login-email-ip`), never the plain address (F-113).

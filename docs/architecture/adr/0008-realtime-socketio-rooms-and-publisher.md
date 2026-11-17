@@ -26,7 +26,7 @@ created a new socket on every navigation (B-79).
   mapped to shared DTOs (`insert … returning` + author join), so ids and timestamps come from the DB.
 - Every client event: session-alive guard → Zod parse → limiter → service → ack. Errors are acks, never throws.
 - `shared/realtime/publisher.ts` defines `RealtimePublisher { emitToRoom, leaveRoom(roomOfSockets, room),
-  disconnectSession }`. `container.ts` creates the `Server` (not yet attached) and the publisher around it; the
+disconnectSession }`. `container.ts` creates the `Server` (not yet attached) and the publisher around it; the
   services of auth, friends and wall receive the publisher; `server.ts` attaches the server to the HTTP server.
   Feature socket handlers are `SocketRegistrar = (socket: AppSocket, io: AppServer) => void` functions returned
   from each module's `index.ts` and registered in order (presence first) by `shared/realtime/socket-server.ts`.

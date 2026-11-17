@@ -14,7 +14,7 @@ PLAN.md prescribes Redux Toolkit/RTK Query.
 ## Decision
 
 - One `baseApi` (`shared/api/baseApi.ts`, `createApi` with `tagTypes: ['Me', 'User', 'Friendships', 'Wall',
-  'Chat', 'Presence']`); features add endpoints with `injectEndpoints` in their own `<name>.api.ts`.
+'Chat', 'Presence']`); features add endpoints with `injectEndpoints` in their own `<name>.api.ts`.
 - Server state lives only in RTK Query caches, keyed by arguments (profile per id, wall per owner id).
 - Lists with "load older" use `build.infiniteQuery` (RTK 2.14) with the cursor as `pageParam`.
 - Socket events are applied in `onCacheEntryAdded` of the endpoint that owns the data, via `updateCachedData`, only

@@ -1,0 +1,15 @@
+/*
+ * Entry stylesheet, imported once by src/main.tsx (after the fontsource CSS). Order matters.
+ *
+ * source(none): Tailwind does NOT scan templates. No utility class can ever be
+ * generated from markup; utilities exist only where a CSS file uses @apply.
+ * This is the second line of defence after scripts/check-no-utilities.mjs.
+ *
+ * React components are compiled separately: each component's X.css (imported by X.tsx)
+ * starts with `@reference "#styles/main.css";` (package.json "imports") and is never
+ * imported here (a @reference back to this file would recurse).
+ */
+@import 'tailwindcss' source(none);
+@import './tokens.css';
+@import './base.css';
+@import './utilities.css';

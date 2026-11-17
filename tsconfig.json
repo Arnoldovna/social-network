@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    // The root tooling stays plain .mjs (Node built-ins only, run as `node scripts/<name>.mjs` by CI and the
+    // conventions), but its JSDoc types are checked like TypeScript.
+    "allowJs": true,
+    "checkJs": true,
+    "lib": ["es2025", "dom", "dom.iterable"],
+    "types": ["node"]
+  },
+  "include": ["*.config.ts", "e2e/**/*.ts", "scripts/**/*.ts", "scripts/**/*.mjs"],
+  // A verbatim copy of the modular-css-tailwind4 checker (BUILD-ORDER 1a); it carries no JSDoc types.
+  "exclude": ["scripts/check-no-utilities.mjs"]
+}

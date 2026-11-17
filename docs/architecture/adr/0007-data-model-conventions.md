@@ -16,12 +16,12 @@ no unique pair or self check on friendships (B-24, B-25, B-66), no FK delete beh
   option: nine CHECK and index expressions reference columns inside `sql` templates, and drizzle-kit is known to
   render those wrongly together with `casing: 'snake_case'`. Versioned forward-only migrations committed in
   `apps/api/drizzle/`, applied by a one-shot `migrate` service, never on app boot. CI fails when `drizzle-kit
-  generate` would produce a migration that is not committed (schema drift check in the `lint` job).
+generate` would produce a migration that is not committed (schema drift check in the `lint` job).
 - `integer` identity primary keys (not `bigint`): int32 is ample, JS numbers stay exact, sessions store a number.
 - Emails: trimmed and lower-cased by Zod, `CHECK (email = lower(email))`, unique index on `lower(email)`; no
   `citext` extension (fewer moving parts, verified in the template).
 - Friendships: one row per unordered pair via a unique expression index on `(least, greatest)`, `CHECK
-  (requester_id <> addressee_id)`, `friendship_status` enum (`pending`, `accepted`), `accepted_at` consistent with
+(requester_id <> addressee_id)`, `friendship_status` enum (`pending`, `accepted`), `accepted_at` consistent with
   status by CHECK. Inserts use `ON CONFLICT DO NOTHING`; zero rows → 409.
 - All length and trimming rules from Zod are duplicated as CHECK constraints, so invariants hold for every writer.
 - `ON DELETE CASCADE` on every user-owned FK.

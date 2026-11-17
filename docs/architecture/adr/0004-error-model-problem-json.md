@@ -22,7 +22,7 @@ served the SPA shell for unknown API paths (B-57). PLAN.md requires a central RF
     `LIMIT_FILE_SIZE` → 413 `file-too-large`, other `MulterError`s → 400 `invalid-request`; other http-errors 4xx
     (body-parser) → `invalid-request` with their status; `instance` without the query string.
   - `ValidationError` takes its status from `validate()` (see below) instead of a hard-wired 400.
-  These files are frozen after Phase 1, so the deltas must land there; a Phase 2 unit cannot fix them.
+    These files are frozen after Phase 1, so the deltas must land there; a Phase 2 unit cannot fix them.
 - Codes are an enum in `packages/shared/src/problem.ts`; the client reads them with `problemCode()`. Catalogue in
   API.md §4. `AppError.code` is typed `ProblemCode`, so throwing an unknown code is a type error, and
   `shared/errors/__tests__/problem-codes.test.ts` runs every third-party mapping through `toProblem` and parses
@@ -51,5 +51,6 @@ served the SPA shell for unknown API paths (B-57). PLAN.md requires a central RF
 
 ## Consequences
 
-- The template deltas above are implemented in Phase 1b and covered by `validate` and `problem-codes` unit tests.
+- The `AppError` and `toProblem` deltas above landed at the Phase 1a review gate with the `problem-codes` unit test;
+  the `validate()` status rule follows in Phase 1b with its own unit test.
 - Frontend error handling is uniform: field errors from `errors[]`, messages from `detail`, behaviour from `code`.

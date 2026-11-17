@@ -1,0 +1,25 @@
+packages:
+  - apps/*
+  - packages/*
+
+# pnpm 10 blocks dependency lifecycle scripts by default. Allow only packages that need them.
+# argon2 resolves its bundled prebuild in its install step; esbuild (vite, tsx) installs its platform binary;
+# lefthook installs its platform binary for the git hooks.
+onlyBuiltDependencies:
+  - argon2
+  - esbuild
+  - lefthook
+
+# Reviewed and deliberately not built (all via testcontainers → dockerode, dev only): ssh2's optional native crypto
+# binding and cpu-features (SSH tunnels to remote Docker hosts, unused) fall back to pure JS; protobufjs' postinstall
+# only checks versions. Listing them silences pnpm's "ignored build scripts" warning without allowing them to run.
+ignoredBuiltDependencies:
+  - cpu-features
+  - protobufjs
+  - ssh2
+
+# `pnpm deploy` (used by the Dockerfiles) needs injected workspace packages in pnpm 10.
+injectWorkspacePackages: true
+
+# Wait a day before installing freshly published versions (supply-chain hygiene).
+minimumReleaseAge: 1440

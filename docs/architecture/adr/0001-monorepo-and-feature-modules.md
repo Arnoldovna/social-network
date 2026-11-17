@@ -8,8 +8,8 @@
 
 The legacy app is one 468-line `index.js` (config, middleware, routes, sockets) plus `db.js`, a webpack 1 build that
 writes `bundle.js` into the project root, and a React 16 client with circular imports (B-61, B-101, B-136, B-138).
-PLAN.md fixes the shape for social-network: pnpm monorepo with `apps/web` (React 19 + Vite + Redux Toolkit/RTK Query
-+ React Router), `apps/api` (Express 5 + socket.io 4) and `packages/shared` (Zod). The `project-scaffold` and
+PLAN.md fixes the shape for social-network: pnpm monorepo with `apps/web` (React 19 + Vite + Redux Toolkit/RTK
+Query + React Router), `apps/api` (Express 5 + socket.io 4) and `packages/shared` (Zod). The `project-scaffold` and
 `express-feature-module` skills provide verified templates for exactly this shape.
 
 ## Decision
@@ -39,7 +39,8 @@ PLAN.md fixes the shape for social-network: pnpm monorepo with `apps/web` (React
 
 - Feature folders can be built in parallel by different agents without touching the same files, provided the
   composition files (`app.ts`, `router.tsx`, layouts) and each feature's `index.ts` signature are created first
-  (see BUILD-ORDER.md).
+  (see BUILD-ORDER.md). All units of a phase share one working tree (conventions §4), so the tree must stay
+  importable while they work: BUILD-ORDER rule 7 and ADR-0019 §2.
 - Feature code is easy to delete or move; boundaries are mechanically checked in CI.
 - Slight duplication of small mapping code per feature is accepted over a shared "utils" dumping ground; real shared
   mappings live in `db/selections.ts` (user DTO columns) and `packages/shared`.

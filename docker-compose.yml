@@ -1,0 +1,163 @@
+# Local infrastructure (default profile) and the full production-like stack (profile "app"), OVERVIEW §16.
+#   pnpm infra:up / pnpm dev:setup  -> postgres, redis, minio (+ bucket) for `pnpm dev`
+#   pnpm stack:up / pnpm demo       -> everything incl. migrate, seed, api and web (nginx) on http://127.0.0.1:8080
+# E2E never uses this project: scripts/run-e2e.mjs starts `social-network-e2e` with docker-compose.e2e.yml on top.
+# Ports bind to 127.0.0.1 only. Secrets come from .env (pnpm setup:env). Every pulled image is pinned by digest
+# (conventions §9); Dependabot's docker-compose ecosystem proposes updates. apps/api/test/images.ts reads the postgres
+# and redis references from this file, so Testcontainers always runs the same images.
+name: social-network
+
+# migrate, seed and api run the same API image: one build and one tag per compose project (`social-network-api`, and
+# `social-network-e2e-api` for scripts/run-e2e.mjs) instead of three identical images.
+x-api-image: &api-image
+  build: { context: ., dockerfile: apps/api/Dockerfile }
+  image: ${COMPOSE_PROJECT_NAME}-api
+
+x-api-env: &api-env
+  NODE_ENV: production
+  LOG_LEVEL: info
+  TRUST_PROXY: '1' # behind the web (nginx) container
+  COOKIE_SECURE: 'false' # the local stack is plain http; production sets true (the default)
+  DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+  REDIS_URL: redis://redis:6379
+  SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in .env (pnpm setup:env)}
+  SESSION_TTL_DAYS: ${SESSION_TTL_DAYS:-7}
+  CSRF_SECRET: ${CSRF_SECRET:?set CSRF_SECRET in .env (pnpm setup:env)}
+  # The allow-list follows the published port, or every socket handshake is refused (ADR-0019 §6).
+  CORS_ORIGINS: http://127.0.0.1:${WEB_PORT:-8080},http://localhost:${WEB_PORT:-8080}
+  S3_ENDPOINT: http://minio:9000
+  S3_REGION: ${S3_REGION:-eu-central-1}
+  S3_BUCKET: ${S3_BUCKET:?set S3_BUCKET in .env (pnpm setup:env)}
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?set S3_ACCESS_KEY_ID in .env (pnpm setup:env)}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?set S3_SECRET_ACCESS_KEY in .env (pnpm setup:env)}
+  S3_FORCE_PATH_STYLE: 'true'
+  UPLOAD_MAX_BYTES: ${UPLOAD_MAX_BYTES:-2097152}
+  PRESENCE_GRACE_MS: ${PRESENCE_GRACE_MS:-5000}
+  RATE_LIMIT_MULTIPLIER: ${RATE_LIMIT_MULTIPLIER:-1}
+
+services:
+  postgres:
+    image: postgres:18-alpine@sha256:b6972e1115a4ff8eba5d7f7d19184926d1e16d7d1136ae1e1a7ebf286da0f015
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env (pnpm setup:env)}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (pnpm setup:env)}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env (pnpm setup:env)}
+    ports: ['127.0.0.1:5432:5432']
+    # Postgres 18 keeps its data in a versioned directory below /var/lib/postgresql.
+    volumes: [postgres-data:/var/lib/postgresql]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Sessions and rate-limit counters carry TTLs and are evicted first; presence keys have none (ADR-0017).
+  redis:
+    image: redis:8-alpine@sha256:7958cfbb9d152f87dadfbc89f1b0b15938f0b81ff8982feb327476f4911935c3
+    command:
+      - redis-server
+      - --save
+      - ''
+      - --appendonly
+      - 'no'
+      - --maxmemory
+      - 128mb
+      - --maxmemory-policy
+      - volatile-ttl
+    ports: ['127.0.0.1:6379:6379']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # MinIO stopped publishing community images in Oct 2025; Chainguard ships a free, maintained build. Only `latest`
+  # is free, so the digest is the version.
+  minio:
+    image: cgr.dev/chainguard/minio:latest@sha256:59953701f8f8d0de81aab456f0b0b6c0a1804119415559bf7ede79d944108879
+    command: ['server', '/data', '--console-address', ':9001']
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:?set S3_ACCESS_KEY_ID in .env (pnpm setup:env)}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:?set S3_SECRET_ACCESS_KEY in .env (pnpm setup:env)}
+      MC_HOST_self: http://127.0.0.1:9000 # anonymous alias for the healthcheck below
+    ports: ['127.0.0.1:9000:9000', '127.0.0.1:9001:9001']
+    volumes: [minio-data:/data]
+    healthcheck:
+      # The image bundles mc; `mc ready` calls MinIO's unauthenticated readiness endpoint.
+      test: ['CMD', 'mc', 'ready', 'self']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # One-shot: creates the private bucket once MinIO is healthy (MC_HOST_* defines the alias); idempotent.
+  # `up --wait` only accepts an exited one-shot that another started service depends on (seed and api, profile app),
+  # so the infra-only path runs it with `docker compose run --rm minio-init` (pnpm infra:up).
+  minio-init:
+    image: cgr.dev/chainguard/minio-client:latest@sha256:5eee28fde834bf5da476a6e0cfaf98dfe9625761bab9cd297ebb7125a261ba35
+    command: ['mb', '--ignore-existing', 'local/${S3_BUCKET}']
+    environment:
+      MC_HOST_local: http://${S3_ACCESS_KEY_ID}:${S3_SECRET_ACCESS_KEY}@minio:9000
+    depends_on:
+      minio: { condition: service_healthy }
+
+  # One-shot: applies the Drizzle migrations with the API image.
+  migrate:
+    <<: *api-image
+    profiles: [app]
+    command: ['dist/db/migrate.js']
+    environment: *api-env
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  # One-shot: the insert-only demo seed with the API image (ADR-0019 §7). NODE_ENV stays production: the guard is
+  # SEED_ALLOW, never NODE_ENV (conventions §8). SEED_DEMO_PASSWORD reaches this service only, never the api.
+  seed:
+    <<: *api-image
+    profiles: [app]
+    command: ['dist/db/seed/cli.js']
+    environment:
+      <<: *api-env
+      SEED_ALLOW: 'true'
+      SEED_DEMO_PASSWORD: ${SEED_DEMO_PASSWORD:?run pnpm setup:env}
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      minio-init: { condition: service_completed_successfully }
+
+  api:
+    <<: *api-image
+    profiles: [app]
+    environment: *api-env
+    # sharp re-encodes avatars in this process; the cap keeps a decompression bomb from taking the host (ADR-0010).
+    mem_limit: 768m
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      seed: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+      minio-init: { condition: service_completed_successfully }
+    healthcheck:
+      # distroless: no shell or curl, so use the bundled node binary.
+      test:
+        - CMD
+        - /nodejs/bin/node
+        - -e
+        - "fetch('http://127.0.0.1:3000/health/ready').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+  web:
+    profiles: [app]
+    build: { context: ., dockerfile: apps/web/Dockerfile }
+    ports: ['127.0.0.1:${WEB_PORT:-8080}:8080']
+    depends_on:
+      api: { condition: service_healthy }
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '--spider', 'http://127.0.0.1:8080/']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres-data:
+  minio-data:

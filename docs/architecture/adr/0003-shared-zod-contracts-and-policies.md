@@ -28,7 +28,7 @@ object carried the wrong id (B-41). The UI decided permissions on its own (B-90)
   for numeric query values. `z.coerce.number()` would accept `true`, `[7]`, `"0x1F"` and `"1e3"`.
 - `policy.ts` contains pure permission helpers needed by the UI for rendering decisions (`canDeleteWallPost`). The
   server calls the same helper in the service before its SQL guard; the DB guard (`WHERE author_id = $me OR
-  wall_owner_id = $me`) remains authoritative.
+wall_owner_id = $me`) remains authoritative.
 - Friendship state is an enum (`none | pending_outgoing | pending_incoming | friends`); labels live in the web app
   (`friend-button-labels.ts`).
 

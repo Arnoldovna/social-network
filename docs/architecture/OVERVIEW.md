@@ -1,6 +1,8 @@
 # Architecture overview: social-network ("Let's chat!")
 
-Status: proposed, revised after the architecture critique (architecture phase, PLAN.md Etappe 1). Binding inputs: `/Users/marina/Code/PLAN.md`,
+Status: proposed, revised after the architecture critique and re-reviewed after the cross-project consistency pass
+([ADR-0018](adr/0018-ci-cost-rule.md), [ADR-0019](adr/0019-consistency-pass-alignment.md)). Binding inputs:
+`~/PLAN.md`, `project-scaffold/references/conventions.md`,
 `docs/FEATURES.md` (F-01 – F-115), `docs/BUGS.md` (B-01 – B-142), the house skills `project-scaffold`,
 `express-feature-module`, `maw-design-system`, `modular-css-tailwind4`.
 
@@ -161,9 +163,9 @@ in `project-scaffold` are included where they matter.
 social-network/
 ├── .github/
 │   ├── actions/setup/action.yml
-│   ├── workflows/ci.yml                     lint (+ schema drift) · typecheck · unit · integration · build · e2e · dev-setup-smoke · gitleaks
+│   ├── workflows/ci.yml                     lint (+ schema drift) · typecheck · unit · integration · build · e2e (PR only) · dev-setup-smoke · gitleaks
 │   ├── workflows/audit.yml                  pnpm audit: weekly, on lockfile change on main, manual; not a PR check
-│   ├── workflows/release.yml                workflow_run after green CI on main: GHCR images (api, web); deploy job gated by vars.DEPLOY_ENABLED
+│   ├── workflows/release.yml                workflow_run after green CI on main: GHCR images (api, web) only if the repo is public; deploy also gated by vars.DEPLOY_ENABLED (ADR-0018)
 │   ├── dependabot.yml                       npm, github-actions, docker, docker-compose
 │   └── pull_request_template.md
 ├── apps/
@@ -182,7 +184,7 @@ social-network/
 │   │   │   ├── db/client.ts  db/migrate.ts
 │   │   │   ├── db/schema/{index,users,friendships,wall-posts,chat-messages}.ts
 │   │   │   ├── db/selections.ts             userSummaryColumns, publicUserColumns, toUserSummary(row, avatarUrl), toPublicUser
-│   │   │   ├── db/seed/{index,people,content,avatars}.ts
+│   │   │   ├── db/seed/{cli,index,people,content,avatars}.ts   cli = entry point (SEED_ALLOW guard); index = runSeed(deps), no side effects
 │   │   │   ├── shared/
 │   │   │   │   ├── errors/{app-error,db-errors}.ts
 │   │   │   │   ├── http/{problem,validate,health}.ts
@@ -203,24 +205,26 @@ social-network/
 │   │   │       │   └── __tests__/{users.service.test,search-pattern.test,users.routes.int.test,fakes}.ts
 │   │   │       ├── avatars/{avatars.repository,avatars.service,avatars.controller,avatars.routes,index}.ts
 │   │   │       │   └── __tests__/{avatars.service.test,avatars.routes.int.test,fakes,fixtures}.ts
-│   │   │       ├── friends/{friends.schema,friends.repository,friends.service,friends.controller,friends.routes,friendship-state,index}.ts
-│   │   │       │   └── __tests__/{friendship-state.test,friends.service.test,friends.routes.int.test,fakes}.ts
+│   │   │       ├── friends/{friends.schema,friends.repository,friends.service,friends.controller,friends.routes,index}.ts
+│   │   │       │   ├── {friendship-state,friendship-reader}.ts   Phase 1b, frozen: FriendshipReader used by users and wall
+│   │   │       │   └── __tests__/{friendship-state.test,friendship-reader.int.test,friends.service.test,friends.routes.int.test,fakes}.ts
 │   │   │       ├── wall/{wall.schema,wall.repository,wall.service,wall.controller,wall.routes,wall.socket,index}.ts
 │   │   │       │   └── __tests__/{wall.service.test,wall.routes.int.test,wall.socket.int.test,fakes,fixtures}.ts
 │   │   │       ├── chat/{chat.schema,chat.repository,chat.service,chat.controller,chat.routes,chat.socket,index}.ts
 │   │   │       │   └── __tests__/{chat.service.test,chat.routes.int.test,chat.socket.int.test,chat-limits.int.test,fakes,fixtures}.ts
 │   │   │       └── presence/{presence.store,presence.repository,presence.service,presence.controller,presence.routes,presence.socket,index}.ts
 │   │   │           └── __tests__/{presence.service.test,presence.store.int.test,presence.socket.int.test,presence.routes.int.test,fakes}.ts
-│   │   └── test/                            frozen after Phase 1b
+│   │   └── test/                            harness from 1a, completed and frozen after Phase 1b; never in dist/ or the image
 │   │       ├── global-setup.ts              Testcontainers Postgres 18 + Redis 8 (digest-pinned), migrated template database
 │   │       ├── setup-database.ts  database.ts  per-file database cloned from the template, currentDatabaseUrl() (conventions §7)
-│   │       ├── images.ts                    the digest-pinned image refs shared with compose
-│   │       ├── test-app.ts                  createTestApp({ limits?, keyPrefix? }): real app + io on the file's database, multiplied limits, own key prefix
+│   │       ├── images.ts                    composeImages(): postgres/redis refs read from docker-compose.yml (one source)
+│   │       ├── test-app.ts                  createTestApp({ limits?, keyPrefix?, testRoutes? }): real app + io on the file's database, multiplied limits, own key prefix
+│   │       ├── test-routes.ts               POST /__test/sign-in (test apps only, ADR-0019 §3)
 │   │       ├── fakes.ts                     generic infra fakes: storage, publisher, friendship reader, hasher (fast), clock
-│   │       ├── http.ts                      agent helpers: csrf(), register(), login(), befriend()
+│   │       ├── http.ts                      agent helpers: csrf(), signIn() (test route), register(), login() (auth's own tests)
 │   │       ├── socket.ts                    connectAs(agent, { origin? }) → websocket-only client with Origin header, waitFor(event)
 │   │       ├── db.ts                        typed inserters for all four tables (explicit createdAt, bulk); no truncation
-│   │       ├── app.int.test.ts              404 problem, security headers, health (F-04, F-106, F-109, F-114)
+│   │       ├── app.int.test.ts              404 problem, security headers, health, no test route without testRoutes (F-04, F-106, F-109, F-114)
 │   │       └── realtime.int.test.ts         handshake auth, origin rules, handshake limit, socket cap, session sweep (F-111)
 │   ├── web/
 │   │   ├── Dockerfile  nginx.conf (+ /socket.io/ upgrade location, problem+json 413, CSP without inline scripts)
@@ -243,7 +247,7 @@ social-network/
 │   │       │   ├── ui/{Button,TextField,TextArea,FieldError,Dialog,ConfirmDialog,Avatar,UserRow,RelativeTime,
 │   │       │   │       LoadingState,ErrorState,EmptyState,Toast}.tsx (+ one .css each)
 │   │       │   ├── ui/{SkipLink,VisuallyHidden}.tsx  (no own CSS: `.skip-link`/`.visually-hidden` live in utilities.css)
-│   │       │   └── test/{setup,render,msw}.ts(x)
+│   │       │   └── test/{setup,render,msw}.ts(x)   setup.ts from 1a (vitest setupFiles); MSW onUnhandledRequest: 'error'
 │   │       ├── styles/{main,tokens,base,utilities}.css
 │   │       └── features/
 │   │           ├── auth/{auth.api.ts, index.ts}
@@ -281,8 +285,8 @@ social-network/
 ├── e2e/
 │   ├── a11y.ts
 │   ├── fixtures/{api.ts, test.ts, images.ts}
-│   └── {routing,auth,profile,avatar,friends,search,wall,chat,presence,layout}.spec.ts
-├── scripts/{check-no-utilities,setup-env,dev-setup,run-e2e}.mjs
+│   └── {smoke,routing,auth,profile,avatar,friends,search,wall,chat,presence,layout}.spec.ts
+├── scripts/{check-no-utilities,setup-env,dev-setup,run-e2e}.mjs   dev-setup.mjs --demo = `pnpm demo`
 ├── docs/ FEATURES.md  BUGS.md  architecture/  media/
 ├── LICENSES/OFL-SchibstedGrotesk.txt
 ├── docker-compose.yml  docker-compose.e2e.yml  .env.example  .gitignore  .dockerignore  .gitleaks.toml  .gitleaks.dir.toml
@@ -299,12 +303,12 @@ Enforced by `eslint-plugin-boundaries` (`boundaries/dependencies`, `default: 'di
 
 **API** (elements `feature`, `shared`, `config`, `db`, as in the template):
 
-| From | May import |
-|---|---|
-| `features/<x>/*` | own files; `features/<y>/index.ts` only (not used in v1); `shared/*`, `config/*`, `db/*`; `@app/shared` |
-| `db/*` | `db/*`, `shared/*`, `config/*` |
-| `shared/*` | `shared/*`, `config/*` (never `db`, never features) |
-| `app.ts`, `server.ts`, `container.ts` | everything (composition root, outside the element patterns) |
+| From                                  | May import                                                                                              |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `features/<x>/*`                      | own files; `features/<y>/index.ts` only (not used in v1); `shared/*`, `config/*`, `db/*`; `@app/shared` |
+| `db/*`                                | `db/*`, `shared/*`, `config/*`                                                                          |
+| `shared/*`                            | `shared/*`, `config/*` (never `db`, never features)                                                     |
+| `app.ts`, `server.ts`, `container.ts` | everything (composition root, outside the element patterns)                                             |
 
 Cross-feature collaboration goes through ports: `shared/ports/friendship-reader.ts` (implemented by `friends`,
 consumed by `users`, `wall`) and `shared/realtime/publisher.ts` (implemented in `shared/realtime`, consumed by
@@ -315,11 +319,11 @@ names come only from `shared/realtime/rooms.ts` (`rooms.user(id)`, `rooms.sessio
 
 **Web** (scaffold adds element `app` to the web ESLint config):
 
-| From | May import |
-|---|---|
-| `app/*` | `app/*`, `features/<x>/index.ts`, `shared/*` |
+| From             | May import                                     |
+| ---------------- | ---------------------------------------------- |
+| `app/*`          | `app/*`, `features/<x>/index.ts`, `shared/*`   |
 | `features/<x>/*` | own files, `features/<y>/index.ts`, `shared/*` |
-| `shared/*` | `shared/*` only |
+| `shared/*`       | `shared/*` only                                |
 
 Allowed cross-feature imports in the web app (everything else is a review finding): `profile → wall (Wall)`,
 `profile → friends (FriendButton)`, `profile → avatars (AvatarButton)`. The header composes `search`, `friends`,
@@ -355,19 +359,19 @@ of schemas is in [API.md §1](API.md#1-shared-contract-packagessharedsrc).
 [ADR-0012](adr/0012-frontend-state-rtk-query.md). Redux Toolkit 2.14 with **RTK Query as the only server-state
 store**; plain slices only for client state.
 
-| State | Where | Notes |
-|---|---|---|
-| Current user | `shared/api/me.api.ts` → `getMe` (tag `Me`), `selectIsAuthenticated` | used by loaders, header, wall/chat ownership checks via `useCurrentUser()`; login/register write the returned user into this cache |
-| Profiles | `profile.api.ts` → `getUser(id)` (tag `User`, id), `updateMe` (invalidates `Me`, `User` self) | cache keyed per id, so switching profiles never shows the previous user (B-91) |
-| Friendships | `friends.api.ts` → `getFriendships` (tag `Friendships`), `sendRequest`, `accept`, `remove` (invalidate `Friendships` and `User` id) | one source of truth for the friend button and the friends page (B-92); refetchOnMountOrArgChange (F-57) |
-| Search | `search.api.ts` → `searchUsers({ q, limit })` | `keepUnusedDataFor: 30`; debounced input 300 ms |
-| Wall | `wall.api.ts` → `getWallPosts` as `build.infiniteQuery` (pageParam = cursor), `createPost`, `deletePost` | socket deltas applied with `updateCachedData` only while the entry is subscribed (B-86) |
-| Chat | `chat.api.ts` → `getChatMessages` infinite query; sending over the socket with ack | pending messages are local component state (`clientId`), replaced on ack |
-| Presence | `presence.api.ts` → `getOnlineUsers` (tag `Presence`) | `presence:joined/left` applied as a de-duplicated id map (B-87) |
-| Realtime connection | `shared/realtime/realtimeSlice.ts` `{ status: 'idle' \| 'connecting' \| 'connected' \| 'reconnecting' }` | drives the "Reconnecting…" banner (F-107) |
-| Session expiry | `shared/session/session-events.ts` action `sessionExpired` | dispatched only when the client **was authenticated** (see below); `app/session-listener.ts` (started from `main.tsx` with `navigate` injected) clears the CSRF token, disconnects the socket, resets the API state and navigates to `/welcome/login?reason=expired` (F-22) |
-| Form drafts | component state via react-hook-form / `useState` | never touched by incoming events (B-83, F-73, F-80) |
-| UI | component state (menu open, dialog open) | no global UI slice |
+| State               | Where                                                                                                                               | Notes                                                                                                                                                                                                                                                                       |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Current user        | `shared/api/me.api.ts` → `getMe` (tag `Me`), `selectIsAuthenticated`                                                                | used by loaders, header, wall/chat ownership checks via `useCurrentUser()`; login/register write the returned user into this cache                                                                                                                                          |
+| Profiles            | `profile.api.ts` → `getUser(id)` (tag `User`, id), `updateMe` (invalidates `Me`, `User` self)                                       | cache keyed per id, so switching profiles never shows the previous user (B-91)                                                                                                                                                                                              |
+| Friendships         | `friends.api.ts` → `getFriendships` (tag `Friendships`), `sendRequest`, `accept`, `remove` (invalidate `Friendships` and `User` id) | one source of truth for the friend button and the friends page (B-92); refetchOnMountOrArgChange (F-57)                                                                                                                                                                     |
+| Search              | `search.api.ts` → `searchUsers({ q, limit })`                                                                                       | `keepUnusedDataFor: 30`; debounced input 300 ms                                                                                                                                                                                                                             |
+| Wall                | `wall.api.ts` → `getWallPosts` as `build.infiniteQuery` (pageParam = cursor), `createPost`, `deletePost`                            | socket deltas applied with `updateCachedData` only while the entry is subscribed (B-86)                                                                                                                                                                                     |
+| Chat                | `chat.api.ts` → `getChatMessages` infinite query; sending over the socket with ack                                                  | pending messages are local component state (`clientId`), replaced on ack                                                                                                                                                                                                    |
+| Presence            | `presence.api.ts` → `getOnlineUsers` (tag `Presence`)                                                                               | `presence:joined/left` applied as a de-duplicated id map (B-87)                                                                                                                                                                                                             |
+| Realtime connection | `shared/realtime/realtimeSlice.ts` `{ status: 'idle' \| 'connecting' \| 'connected' \| 'reconnecting' }`                            | drives the "Reconnecting…" banner (F-107)                                                                                                                                                                                                                                   |
+| Session expiry      | `shared/session/session-events.ts` action `sessionExpired`                                                                          | dispatched only when the client **was authenticated** (see below); `app/session-listener.ts` (started from `main.tsx` with `navigate` injected) clears the CSRF token, disconnects the socket, resets the API state and navigates to `/welcome/login?reason=expired` (F-22) |
+| Form drafts         | component state via react-hook-form / `useState`                                                                                    | never touched by incoming events (B-83, F-73, F-80)                                                                                                                                                                                                                         |
+| UI                  | component state (menu open, dialog open)                                                                                            | no global UI slice                                                                                                                                                                                                                                                          |
 
 Base query (`shared/api/baseQuery.ts`): `fetchBaseQuery({ baseUrl: '/api', credentials: 'same-origin' })` wrapped to
 (1) add `x-csrf-token` on non-GET (token kept in memory, fetched lazily from `/api/csrf-token`, replaced by the
@@ -375,6 +379,7 @@ token from login/register, **cleared on logout and on `sessionExpired`** because
 (2) on 403 `csrf-invalid` refetch the token and retry once, (3) parse problem+json into
 `{ status, code, title, detail, errors }`, (4) on 401 dispatch `sessionExpired` only if **both** hold when the 401
 arrives:
+
 - the endpoint is not `/me`, `/csrf-token` or `/auth/*` (a 401 from `/me` is how loaders recognise a visitor), and
 - `selectIsAuthenticated(state)` is true, i.e. the `getMe` cache holds a user (login/register write the returned
   user into it with `upsertQueryData`; logout and `sessionExpired` reset it).
@@ -404,7 +409,9 @@ in [API.md §3](API.md#3-socketio-path-socketio-same-origin).
   upgrade) and by the Vite dev proxy.
 - WebSocket transport only (`transports: ['websocket']` on both sides): browsers always send `Origin` on a
   WebSocket handshake, so `allowRequest` requires the header and checks it against the allow-list; polling (where
-  same-origin GETs carry no `Origin`) is disabled. The E2E smoke test proves the socket connects through nginx.
+  same-origin GETs carry no `Origin`) is disabled. The E2E smoke spec proves the WebSocket path through nginx
+  without a login (an anonymous raw WebSocket gets `unauthorized`); `routing.spec`/`chat.spec` prove that a logged-in
+  page reaches `connected` (ADR-0019 §6).
 - Handshake: origin rule in `allowRequest`, the same express-session middleware through `io.engine.use`, then
   `io.use`: handshake limiter (30/min/IP), reject without `userId`, at most 10 sockets per user (F-111, B-38,
   B-07). The client is `socket.io-client` from the bundle only (B-134).
@@ -473,7 +480,8 @@ flowchart LR
   `userId` (B-02, B-17, F-19).
 - `establishSession` regenerates the id on register and login (F-18); logout destroys the session, clears the cookie
   and calls `publisher.disconnectSession(sid)` (F-20).
-- CSRF: csrf-csrf 4.1 signed double submit bound to the session id, header `x-csrf-token`, token endpoint
+- CSRF: csrf-csrf 4.1 signed double submit bound to the session id, cookie `__Host-social-network.x-csrf-token`
+  (prod) / `social-network.x-csrf-token` (local http; conventions §8), header `x-csrf-token`, token endpoint
   `GET /api/csrf-token` (anonymous session with a 2 h lifetime), rotated tokens in the register/login response
   (F-23, B-58). Failures are 403 `csrf-invalid`, which the SPA retries once with a fresh token.
 - Passwords: argon2id `m=65536, t=3, p=4`, `needsRehash` on login, dummy hash for unknown emails (F-15, F-17, B-13,
@@ -482,23 +490,24 @@ flowchart LR
   (env, default 1), passed to `createApp` as `deps.limits`. Integration tests use multiplier 100 and the dedicated
   limiter tests pass low explicit limits; the E2E stack uses multiplier 100 (`docker-compose.e2e.yml`, ADR-0016).
 
-  | Limiter | Production value | Key |
-  |---|---|---|
-  | global | 300 / min | `u:<userId>` with a session, IP otherwise; skips `GET /api/users/:id/avatar` |
-  | auth (register + login) | 10 / 15 min | IP |
-  | failed logins, strict | 5 / 15 min | `sha256(email)` + IP |
-  | failed logins, ceiling | 50 / h | `sha256(email)` |
-  | search | 60 / min | userId |
-  | writes (friendships, wall) | 60 / 10 min | userId |
-  | avatar upload | 20 / h | userId |
-  | socket handshake | 30 / min | IP |
-  | `chat:send` | 10 / 10 s | userId |
-  | `wall:join` | 30 / min | userId |
+  | Limiter                    | Production value | Key                                                                          |
+  | -------------------------- | ---------------- | ---------------------------------------------------------------------------- |
+  | global                     | 300 / min        | `u:<userId>` with a session, IP otherwise; skips `GET /api/users/:id/avatar` |
+  | auth (register + login)    | 10 / 15 min      | IP                                                                           |
+  | failed logins, strict      | 5 / 15 min       | `sha256(email)` + IP                                                         |
+  | failed logins, ceiling     | 50 / h           | `sha256(email)`                                                              |
+  | search                     | 60 / min         | userId                                                                       |
+  | writes (friendships, wall) | 60 / 10 min      | userId                                                                       |
+  | avatar upload              | 20 / h           | userId                                                                       |
+  | socket handshake           | 30 / min         | IP                                                                           |
+  | `chat:send`                | 10 / 10 s        | userId                                                                       |
+  | `wall:join`                | 30 / min         | userId                                                                       |
 
   IP keys are IPv6 /56 prefixes: limiters with the default key use `ipv6Subnet: 56`; every custom `keyGenerator`
   (global `u:<userId>`-or-IP, `sha256(email) + ip`, socket handshake) builds its IP part with
   `ipKeyGenerator(req.ip ?? '', 56)`, because express-rate-limit ignores `ipv6Subnet` once a custom key generator
   is set (F-16, B-15, F-84).
+
 - Guards: `requireAuth` on every router except auth register/login, csrf-token and health (B-20); services check
   ownership/friendship (B-21, B-22, B-23).
 - Frontend guards: route loaders (`requireUser`, `redirectIfAuthenticated`); session expiry handled globally (F-22).
@@ -528,43 +537,51 @@ flowchart LR
   by `logger.test.ts` (F-113).
 - Redaction: `req.headers.cookie`, `authorization`, `x-csrf-token`, `res.headers["set-cookie"]`, `*.password`,
   `*.passwordHash`, `*.body` of chat/wall/bio payloads are never logged because request bodies are not logged at all
-  (pino-http default) and services log ids only (B-50).
+  (pino-http default) and services log ids only (B-50). The `err` serializer of every logger (also pino-http's) drops
+  error properties that carry query values or credentials (`client` from pg-pool with the connection password,
+  Drizzle's `params`, Postgres' `detail`, `where`, `internalQuery`) and replaces Drizzle's `params:` values in
+  `message` and `stack` with `[redacted]`; the parameterised SQL stays (B-50, `logger.test.ts`).
 - Socket logging: one `debug` line per event `{ event, socketId, userId, ok, code }`; never message text or bio.
 - Levels: 5xx `error` with stack, 4xx `warn` without stack (pino-http `customLogLevel`), lifecycle `info`. Health
-  probes not logged. `pino-pretty` only when `NODE_ENV=development`.
+  probes are not access-logged; a failed readiness check logs one `warn` with the check's name and cause (the 503
+  body never names it). One line per request: the error handler adds the problem type and, for a 5xx, the real error
+  (`res.err`) to pino-http's line instead of logging a second one. `pino-pretty` only when `NODE_ENV=development`.
 - Frontend: no `console.*` in production code (ESLint); errors surface in the UI.
 
 ## 13. Configuration (environment)
 
 Parsed once in `apps/api/src/config/env.ts` (Zod); invalid config exits with key names only (F-110, B-01, B-03).
-`.env.example` documents every key with empty secrets; `pnpm setup:env` fills them (section 16).
+`.env.example` documents every key with a comment and empty secrets; `pnpm setup:env` fills exactly
+`SESSION_SECRET`, `CSRF_SECRET`, `S3_SECRET_ACCESS_KEY` (also the MinIO root password) and `SEED_DEMO_PASSWORD`
+(section 16).
 
-| Variable | Type / default | Used by |
-|---|---|---|
-| `NODE_ENV` | `development \| test \| production`, default `development` | logger, cookies, seed guard |
-| `PORT` | int, `3000` | server (B-06) |
-| `LOG_LEVEL` | pino level, `info` | logger |
-| `TRUST_PROXY` | int 0–5, `0` (compose: `1`) | secure cookies, rate-limit IPs |
-| `DATABASE_URL` | postgres URL, required | pg pool (B-04) |
-| `REDIS_URL` | redis URL, required | sessions, limits, presence |
-| `COOKIE_SECURE` | stringbool, default = `NODE_ENV === 'production'` | session + CSRF cookies |
-| `SESSION_SECRET` | ≥ 32 chars, required | express-session (B-02) |
-| `SESSION_TTL_DAYS` | int 1–90, `7` | rolling idle timeout (F-19) |
-| `CSRF_SECRET` | ≥ 32 chars, required | csrf-csrf |
-| `CORS_ORIGINS` | CSV of URLs, `[]`; compose sets `http://127.0.0.1:8080,http://localhost:8080`; dev `http://localhost:5173,http://127.0.0.1:5173` | CORS and socket origin allow-list (B-07) |
-| `S3_ENDPOINT` | URL, optional (MinIO) | storage |
-| `S3_REGION` | `eu-central-1` | storage |
-| `S3_BUCKET` | ≥ 3 chars, required | storage (B-05) |
-| `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY` | required | storage |
-| `S3_FORCE_PATH_STYLE` | stringbool, `false` (MinIO `true`) | storage |
-| `UPLOAD_MAX_BYTES` | int, `2097152` | multer limit (Appendix C) |
-| `PRESENCE_GRACE_MS` | int 0–60000, `5000` | presence (F-87) |
-| `RATE_LIMIT_MULTIPLIER` | number 1–10000, `1`; E2E stack `100` | multiplies every limit in `config/limits.ts` (section 10) |
-| `SEED_DEMO_PASSWORD` | ≥ 12 chars; seed only (read in `db/seed/index.ts`) | seed |
-| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | compose only | postgres container |
-| `WEB_PORT` | compose only, `8080` | published nginx port |
-| `E2E_PORT` | compose/e2e only, `8183` | host port of the e2e stack (compose project `social-network-e2e`) |
-| `E2E_BASE_URL` | Playwright only, required; set by `scripts/run-e2e.mjs` (`http://127.0.0.1:8183`) | e2e (conventions §6) |
+| Variable                                              | Type / default                                                                                                                                                                                                                                                                                                             | Used by                                                                                                                        |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `NODE_ENV`                                            | `development \| test \| production`, default `development`                                                                                                                                                                                                                                                                 | logger (`pino-pretty` in development), `COOKIE_SECURE` default. Never part of a seed decision (conventions §8)                 |
+| `PORT`                                                | int, `3000`                                                                                                                                                                                                                                                                                                                | server (B-06)                                                                                                                  |
+| `LOG_LEVEL`                                           | pino level, `info`                                                                                                                                                                                                                                                                                                         | logger                                                                                                                         |
+| `TRUST_PROXY`                                         | int 0–5, `0` (compose: `1`)                                                                                                                                                                                                                                                                                                | secure cookies, rate-limit IPs                                                                                                 |
+| `DATABASE_URL`                                        | postgres URL, required                                                                                                                                                                                                                                                                                                     | pg pool (B-04)                                                                                                                 |
+| `REDIS_URL`                                           | redis URL, required                                                                                                                                                                                                                                                                                                        | sessions, limits, presence                                                                                                     |
+| `COOKIE_SECURE`                                       | stringbool, default = `NODE_ENV === 'production'`                                                                                                                                                                                                                                                                          | session + CSRF cookies                                                                                                         |
+| `SESSION_SECRET`                                      | ≥ 32 chars, required                                                                                                                                                                                                                                                                                                       | express-session (B-02)                                                                                                         |
+| `SESSION_TTL_DAYS`                                    | int 1–90, `7`                                                                                                                                                                                                                                                                                                              | rolling idle timeout (F-19)                                                                                                    |
+| `CSRF_SECRET`                                         | ≥ 32 chars, required                                                                                                                                                                                                                                                                                                       | csrf-csrf                                                                                                                      |
+| `CORS_ORIGINS`                                        | CSV of URLs, `[]`; dev (`.env`) `http://localhost:5173,http://127.0.0.1:5173`; compose sets `http://127.0.0.1:${WEB_PORT:-8080},http://localhost:${WEB_PORT:-8080}`, the e2e override the same with `${E2E_PORT:-8183}` (the allow-list must follow the published port, or every socket handshake is refused, ADR-0019 §6) | CORS and socket origin allow-list (B-07)                                                                                       |
+| `S3_ENDPOINT`                                         | URL, optional (MinIO)                                                                                                                                                                                                                                                                                                      | storage                                                                                                                        |
+| `S3_REGION`                                           | `eu-central-1`                                                                                                                                                                                                                                                                                                             | storage                                                                                                                        |
+| `S3_BUCKET`                                           | ≥ 3 chars, required                                                                                                                                                                                                                                                                                                        | storage (B-05)                                                                                                                 |
+| `S3_ACCESS_KEY_ID` / `S3_SECRET_ACCESS_KEY`           | required                                                                                                                                                                                                                                                                                                                   | storage                                                                                                                        |
+| `S3_FORCE_PATH_STYLE`                                 | stringbool, `false` (MinIO `true`)                                                                                                                                                                                                                                                                                         | storage                                                                                                                        |
+| `UPLOAD_MAX_BYTES`                                    | int 1–2097152 (at most the shared `AVATAR_MAX_BYTES`), `2097152`                                                                                                                                                                                                                                                           | multer limit (Appendix C). Can only lower the limit: the client checks `AVATAR_MAX_BYTES` and nginx caps bodies at 3 MB        |
+| `PRESENCE_GRACE_MS`                                   | int 0–60000, `5000`                                                                                                                                                                                                                                                                                                        | presence (F-87)                                                                                                                |
+| `RATE_LIMIT_MULTIPLIER`                               | number 1–10000, `1`; E2E stack `100`                                                                                                                                                                                                                                                                                       | multiplies every limit in `config/limits.ts` (section 10)                                                                      |
+| `SEED_DEMO_PASSWORD`                                  | ≥ 12 chars, generated by `pnpm setup:env`; read only by `db/seed/cli.ts`; passed to the compose `seed` service only, never to `api`                                                                                                                                                                                        | seed                                                                                                                           |
+| `SEED_ALLOW`                                          | `true` or unset; **not an `.env` key** and not in `.env.example`: set per invocation by the `db:seed` script and the compose `seed` service (conventions §8, ADR-0019 §7)                                                                                                                                                  | seed guard (`assertSeedAllowed`)                                                                                               |
+| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | compose; `POSTGRES_PASSWORD=local-only` is a fixed local value, **not generated**, and the same value appears in `DATABASE_URL` (`pnpm dev:setup` stops when they disagree)                                                                                                                                                | postgres container, compose `DATABASE_URL`                                                                                     |
+| `WEB_PORT`                                            | compose only, `8080`                                                                                                                                                                                                                                                                                                       | published nginx port of the dev compose project (`pnpm stack:up`, `pnpm demo`) and the origin compose puts into `CORS_ORIGINS` |
+| `E2E_PORT`                                            | compose/e2e only, `8183`; `run-e2e.mjs` resolves it once (environment, else `.env`, else 8183) and passes the same value to compose and `E2E_BASE_URL`                                                                                                                                                                     | host port and allow-listed origin of the e2e stack (compose project `social-network-e2e`)                                      |
+| `E2E_BASE_URL`                                        | Playwright only, required; set by `scripts/run-e2e.mjs` from the resolved `E2E_PORT` (`http://127.0.0.1:8183`); not in `.env.example`                                                                                                                                                                                      | e2e (conventions §6)                                                                                                           |
 
 The web app needs no build-time env (same origin); nothing secret ever reaches the bundle.
 
@@ -573,96 +590,104 @@ The web app needs no build-time env (same origin); nothing secret ever reaches t
 [ADR-0016](adr/0016-test-strategy-and-e2e-data.md). Layers from `express-feature-module/references/testing.md`
 plus frontend component tests:
 
-| Layer | Tool | Location | Proves |
-|---|---|---|---|
-| Unit (shared) | Vitest | `packages/shared/src/__tests__` | contract rules (lengths, trimming, email normalisation, problem code parsing, policies) |
-| Unit (API) | Vitest + fakes | `features/<x>/__tests__/*.test.ts`, `shared/**/__tests__` | business rules, ownership, state machine, presence timing (fake timers), env parsing, log redaction |
-| Integration (API) | Vitest + Supertest + Testcontainers + socket.io-client | `*.int.test.ts` | routing, status codes, problem+json, auth 401, CSRF 403, ownership 403/404, real SQL and migrations, socket handshake and events |
-| Component (web) | Vitest + Testing Library + happy-dom + MSW | `apps/web/src/**/__tests__/*.test.tsx` | UI states (loading/error/empty), forms, labels, keyboard behaviour, cache updates |
-| E2E + a11y | Playwright 1.65 + axe, desktop 1440 and mobile 390 | `e2e/*.spec.ts` against the isolated e2e stack (`social-network-e2e`) | user journeys, real-time across two browser contexts, responsive, WCAG 2.2 AA |
-| Static | ESLint, stylelint, `check-no-utilities`, `tsc`, gitleaks | CI `lint` / `typecheck` / `gitleaks` | F-99, B-101, B-113 – B-131, B-01 |
+| Layer             | Tool                                                     | Location                                                                                                                                                                                 | Proves                                                                                                                           |
+| ----------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Unit (shared)     | Vitest                                                   | `packages/shared/src/__tests__`                                                                                                                                                          | contract rules (lengths, trimming, email normalisation, problem code parsing, policies)                                          |
+| Unit (API)        | Vitest + fakes                                           | `features/<x>/__tests__/*.test.ts`, `shared/**/__tests__`                                                                                                                                | business rules, ownership, state machine, presence timing (fake timers), env parsing, log redaction                              |
+| Integration (API) | Vitest + Supertest + Testcontainers + socket.io-client   | `*.int.test.ts`, one cloned database per file, `createTestApp()` in `beforeAll`; agents sign in through the test-only route (`signIn()`), except the auth unit's own tests (ADR-0019 §3) | routing, status codes, problem+json, auth 401, CSRF 403, ownership 403/404, real SQL and migrations, socket handshake and events |
+| Component (web)   | Vitest + Testing Library + happy-dom + MSW               | `apps/web/src/**/__tests__/*.test.tsx`                                                                                                                                                   | UI states (loading/error/empty), forms, labels, keyboard behaviour, cache updates                                                |
+| E2E + a11y        | Playwright 1.65 + axe, desktop 1440 and mobile 390       | `e2e/*.spec.ts` against the isolated e2e stack (`social-network-e2e`, port 8183); in CI on pull requests only (ADR-0018)                                                                 | user journeys, real-time across two browser contexts, responsive, WCAG 2.2 AA                                                    |
+| Static            | ESLint, stylelint, `check-no-utilities`, `tsc`, gitleaks | CI `lint` / `typecheck` / `gitleaks`                                                                                                                                                     | F-99, B-101, B-113 – B-131, B-01                                                                                                 |
 
 Every BUGS item with a behavioural fix gets a regression test (named `B-xx: …`) before the fix is considered done.
 
 ### Mapping FEATURES → tests
 
-| Test file | FEATURES ids |
-|---|---|
-| `packages/shared/src/__tests__/auth.test.ts` | F-07, F-08, F-09 |
-| `packages/shared/src/__tests__/profile.test.ts` | F-29, F-60 (query trimming) |
-| `packages/shared/src/__tests__/wall.test.ts`, `chat.test.ts` | F-67, F-78 |
-| `packages/shared/src/__tests__/policy.test.ts` | F-71 |
-| `packages/shared/src/__tests__/problem.test.ts` | F-106 |
-| `packages/shared/src/__tests__/ids.test.ts`, `dto-strictness.test.ts` | F-42 (id parsing), F-43, F-90 (nested strictness) |
-| `apps/api/src/config/__tests__/env.test.ts` | F-110 |
-| `apps/api/src/shared/logging/__tests__/logger.test.ts` | F-113 (redaction, query string stripped) |
-| `apps/api/src/shared/errors/__tests__/problem-codes.test.ts` | F-106 (every code is a `ProblemCode`) |
-| `apps/api/src/shared/uploads/__tests__/process-image.test.ts` | F-36 (incl. 16000×16000 px bomb → 422) |
-| `apps/api/test/app.int.test.ts` | F-04, F-106, F-109, F-114 |
-| `apps/api/test/realtime.int.test.ts` | F-111 (missing/foreign Origin rejected, handshake limit, socket cap, session sweep) |
-| `features/auth/__tests__/auth.service.test.ts` | F-15, F-17 |
-| `features/auth/__tests__/auth.routes.int.test.ts` | F-06, F-07, F-08, F-09, F-10, F-14, F-15, F-17, F-18, F-19, F-20, F-23 (incl. login again after logout without reload: fresh token works) |
-| `features/auth/__tests__/auth-limits.int.test.ts` | F-16 (own app with low limits) |
-| `features/users/__tests__/users.service.test.ts`, `search-pattern.test.ts` | F-28, F-29, F-60, F-61 |
-| `features/users/__tests__/users.routes.int.test.ts` | F-21, F-29, F-40, F-42, F-43, F-45, F-59, F-60, F-61, F-64, F-65 |
-| `features/avatars/__tests__/avatars.service.test.ts` | F-36, F-39 |
-| `features/avatars/__tests__/avatars.routes.int.test.ts` | F-36, F-37 (old URL still resolves after upload), F-39, F-106 (400/413/415/422) |
-| `features/friends/__tests__/friendship-state.test.ts`, `friends.service.test.ts` | F-45, F-46, F-47, F-48, F-49, F-50 |
-| `features/friends/__tests__/friends.routes.int.test.ts` | F-45, F-46, F-47, F-48, F-49, F-50, F-51, F-52 (event emitted), F-54 |
-| `features/wall/__tests__/wall.service.test.ts` | F-65, F-66, F-71 |
-| `features/wall/__tests__/wall.routes.int.test.ts` | F-65, F-66, F-67, F-69 (author in DTO), F-70 (25 rows in one statement paged without loss), F-71 |
-| `features/wall/__tests__/wall.socket.int.test.ts` | F-72, F-112 |
-| `features/chat/__tests__/chat.service.test.ts` | F-78, F-84 |
-| `features/chat/__tests__/chat.routes.int.test.ts` | F-76, F-82 (25 rows in one statement paged without loss), F-108 |
-| `features/chat/__tests__/chat.socket.int.test.ts` | F-78, F-79, F-85, F-112 |
-| `features/chat/__tests__/chat-limits.int.test.ts` | F-84 (own app with low limits) |
-| `features/presence/__tests__/presence.service.test.ts` | F-87, F-88 |
-| `features/presence/__tests__/presence.store.int.test.ts` | F-91 |
-| `features/presence/__tests__/presence.socket.int.test.ts` | F-86, F-87, F-88, F-90 |
-| `features/presence/__tests__/presence.routes.int.test.ts` | F-86, F-90 |
-| `apps/api/src/db/seed/__tests__/seed.int.test.ts` | F-115 |
-| `apps/web/src/app/__tests__/loaders.test.tsx`, `session-listener.test.ts` | F-01, F-02, F-22 (visitor on `/welcome` and `/welcome/about` stays without `reason=expired`; logged-in 401 → message exactly once; socket `io server disconnect` → expiry) |
-| `apps/web/src/app/__tests__/MainNav.test.tsx` | F-92, F-93, F-94 |
-| `apps/web/src/shared/**/__tests__` (baseQuery, format-date, ui) | F-22, F-23, F-101, F-105, F-108 |
-| `features/auth/__tests__/*` | F-11, F-12, F-13 |
-| `features/profile/__tests__/*` | F-25, F-26, F-27, F-28, F-30, F-31, F-32, F-41, F-42, F-44 |
-| `features/avatars/__tests__/*` | F-33, F-34, F-35, F-38 |
-| `features/friends/__tests__/*` | F-45, F-51, F-53, F-55, F-56, F-58 |
-| `features/search/__tests__/HeaderSearch.test.tsx` | F-59, F-62, F-63 |
-| `features/wall/__tests__/*` | F-69, F-71, F-73, F-74, F-75 |
-| `features/chat/__tests__/*` | F-78, F-80, F-81, F-83 |
-| `features/presence/__tests__/OnlinePage.test.tsx` | F-86, F-88, F-89 |
-| `e2e/routing.spec.ts` | F-01, F-02, F-03, F-04, F-05 |
-| `e2e/auth.spec.ts` | F-06, F-10, F-11, F-12, F-13, F-14, F-20, F-22 |
-| `e2e/profile.spec.ts` | F-24, F-25, F-26, F-27, F-28, F-29, F-30, F-31, F-32, F-40, F-41, F-42, F-44 |
-| `e2e/avatar.spec.ts` | F-33, F-34, F-35, F-37, F-38 |
-| `e2e/friends.spec.ts` | F-45, F-49, F-50, F-51, F-52, F-53, F-54, F-55, F-56, F-57 |
-| `e2e/search.spec.ts` | F-59, F-62, F-63 |
-| `e2e/wall.spec.ts` | F-65, F-66, F-69, F-70, F-71, F-72, F-73, F-74, F-75 |
-| `e2e/chat.spec.ts` | F-76, F-77, F-78, F-79, F-80, F-81, F-82, F-85, F-107 |
-| `e2e/presence.spec.ts` | F-86, F-87, F-88 |
-| `e2e/layout.spec.ts` | F-58, F-92 – F-98, F-100 – F-105 (axe on every page, keyboard walk, 320–1920 px overflow sweep with explicit header checks at 640, 768 and 1024 px, reduced motion) |
-| `e2e/fixtures/test.ts` (every spec) | F-109 (no CSP violation in the console) |
-| `stylelint` + `check-no-utilities` (CI lint job) | F-99 |
-| — | F-68 dropped by ADR-0011 (no test; the column does not exist) |
+| Test file                                                                             | FEATURES ids                                                                                                                                                               |
+| ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/shared/src/__tests__/auth.test.ts`                                          | F-07, F-08, F-09                                                                                                                                                           |
+| `packages/shared/src/__tests__/profile.test.ts`                                       | F-29, F-60 (query trimming)                                                                                                                                                |
+| `packages/shared/src/__tests__/wall.test.ts`, `chat.test.ts`                          | F-67, F-78                                                                                                                                                                 |
+| `packages/shared/src/__tests__/policy.test.ts`                                        | F-71                                                                                                                                                                       |
+| `packages/shared/src/__tests__/problem.test.ts`                                       | F-106                                                                                                                                                                      |
+| `packages/shared/src/__tests__/ids.test.ts`, `dto-strictness.test.ts`                 | F-42 (id parsing), F-43, F-90 (nested strictness)                                                                                                                          |
+| `apps/api/src/config/__tests__/env.test.ts`                                           | F-110                                                                                                                                                                      |
+| `apps/api/src/shared/logging/__tests__/logger.test.ts`                                | F-113 (redaction, query string stripped)                                                                                                                                   |
+| `apps/api/src/shared/errors/__tests__/problem-codes.test.ts`                          | F-106 (every code is a `ProblemCode`)                                                                                                                                      |
+| `apps/api/src/shared/uploads/__tests__/process-image.test.ts`                         | F-36 (incl. 16000×16000 px bomb → 422)                                                                                                                                     |
+| `apps/api/test/app.int.test.ts`                                                       | F-04, F-106, F-109, F-114                                                                                                                                                  |
+| `apps/api/test/realtime.int.test.ts`                                                  | F-111 (missing/foreign Origin rejected, handshake limit, socket cap, session sweep)                                                                                        |
+| `features/auth/__tests__/auth.service.test.ts`                                        | F-15, F-17                                                                                                                                                                 |
+| `features/auth/__tests__/auth.routes.int.test.ts`                                     | F-06, F-07, F-08, F-09, F-10, F-14, F-15, F-17, F-18, F-19, F-20, F-23 (incl. login again after logout without reload: fresh token works)                                  |
+| `features/auth/__tests__/auth-limits.int.test.ts`                                     | F-16 (own app with low limits)                                                                                                                                             |
+| `features/users/__tests__/users.service.test.ts`, `search-pattern.test.ts`            | F-28, F-29, F-60, F-61                                                                                                                                                     |
+| `features/users/__tests__/users.routes.int.test.ts`                                   | F-21, F-29, F-40, F-42, F-43, F-45, F-59, F-60, F-61, F-64, F-65                                                                                                           |
+| `features/avatars/__tests__/avatars.service.test.ts`                                  | F-36, F-39                                                                                                                                                                 |
+| `features/avatars/__tests__/avatars.routes.int.test.ts`                               | F-36, F-37 (old URL still resolves after upload), F-39, F-106 (400/413/415/422)                                                                                            |
+| `features/friends/__tests__/friendship-state.test.ts` (1b), `friends.service.test.ts` | F-45, F-46, F-47, F-48, F-49, F-50                                                                                                                                         |
+| `features/friends/__tests__/friendship-reader.int.test.ts` (1b)                       | F-45 (state from either side), F-65 (`areFriends` for the wall rule)                                                                                                       |
+| `features/friends/__tests__/friends.routes.int.test.ts`                               | F-45, F-46, F-47, F-48, F-49, F-50, F-51, F-52 (event emitted), F-54                                                                                                       |
+| `features/wall/__tests__/wall.service.test.ts`                                        | F-65, F-66, F-71                                                                                                                                                           |
+| `features/wall/__tests__/wall.routes.int.test.ts`                                     | F-65, F-66, F-67, F-69 (author in DTO), F-70 (25 rows in one statement paged without loss), F-71                                                                           |
+| `features/wall/__tests__/wall.socket.int.test.ts`                                     | F-72, F-112                                                                                                                                                                |
+| `features/chat/__tests__/chat.service.test.ts`                                        | F-78, F-84                                                                                                                                                                 |
+| `features/chat/__tests__/chat.routes.int.test.ts`                                     | F-76, F-82 (25 rows in one statement paged without loss), F-108                                                                                                            |
+| `features/chat/__tests__/chat.socket.int.test.ts`                                     | F-78, F-79, F-85, F-112                                                                                                                                                    |
+| `features/chat/__tests__/chat-limits.int.test.ts`                                     | F-84 (own app with low limits)                                                                                                                                             |
+| `features/presence/__tests__/presence.service.test.ts`                                | F-87, F-88                                                                                                                                                                 |
+| `features/presence/__tests__/presence.store.int.test.ts`                              | F-91                                                                                                                                                                       |
+| `features/presence/__tests__/presence.socket.int.test.ts`                             | F-86, F-87, F-88, F-90                                                                                                                                                     |
+| `features/presence/__tests__/presence.routes.int.test.ts`                             | F-86, F-90                                                                                                                                                                 |
+| `apps/api/src/db/seed/__tests__/seed.int.test.ts`                                     | F-115                                                                                                                                                                      |
+| `apps/web/src/app/__tests__/loaders.test.tsx`, `session-listener.test.ts`             | F-01, F-02, F-22 (visitor on `/welcome` and `/welcome/about` stays without `reason=expired`; logged-in 401 → message exactly once; socket `io server disconnect` → expiry) |
+| `apps/web/src/app/__tests__/MainNav.test.tsx`                                         | F-92, F-93, F-94                                                                                                                                                           |
+| `apps/web/src/shared/**/__tests__` (baseQuery, format-date, ui)                       | F-22, F-23, F-101, F-105, F-108                                                                                                                                            |
+| `features/auth/__tests__/*`                                                           | F-11, F-12, F-13                                                                                                                                                           |
+| `features/profile/__tests__/*`                                                        | F-25, F-26, F-27, F-28, F-30, F-31, F-32, F-41, F-42, F-44                                                                                                                 |
+| `features/avatars/__tests__/*`                                                        | F-33, F-34, F-35, F-38                                                                                                                                                     |
+| `features/friends/__tests__/*`                                                        | F-45, F-51, F-53, F-55, F-56, F-58                                                                                                                                         |
+| `features/search/__tests__/HeaderSearch.test.tsx`                                     | F-59, F-62, F-63                                                                                                                                                           |
+| `features/wall/__tests__/*`                                                           | F-69, F-71, F-73, F-74, F-75                                                                                                                                               |
+| `features/chat/__tests__/*`                                                           | F-78, F-80, F-81, F-83                                                                                                                                                     |
+| `features/presence/__tests__/OnlinePage.test.tsx`                                     | F-86, F-88, F-89                                                                                                                                                           |
+| `e2e/smoke.spec.ts` (1a/1c)                                                           | F-109; anonymous raw WebSocket through nginx gets `unauthorized` (B-07, B-38)                                                                                              |
+| `e2e/routing.spec.ts`                                                                 | F-01, F-02, F-03 (logged-in socket `connected`, same id across navigation), F-04, F-05                                                                                     |
+| `e2e/auth.spec.ts`                                                                    | F-06, F-10, F-11, F-12, F-13, F-14, F-20, F-22                                                                                                                             |
+| `e2e/profile.spec.ts`                                                                 | F-24, F-25, F-26, F-27, F-28, F-29, F-30, F-31, F-32, F-40, F-41, F-42, F-44                                                                                               |
+| `e2e/avatar.spec.ts`                                                                  | F-33, F-34, F-35, F-37, F-38                                                                                                                                               |
+| `e2e/friends.spec.ts`                                                                 | F-45, F-49, F-50, F-51, F-52, F-53, F-54, F-55, F-56, F-57                                                                                                                 |
+| `e2e/search.spec.ts`                                                                  | F-59, F-62, F-63                                                                                                                                                           |
+| `e2e/wall.spec.ts`                                                                    | F-65, F-66, F-69, F-70, F-71, F-72, F-73, F-74, F-75                                                                                                                       |
+| `e2e/chat.spec.ts`                                                                    | F-76, F-77, F-78, F-79, F-80, F-81, F-82, F-85, F-107                                                                                                                      |
+| `e2e/presence.spec.ts`                                                                | F-86, F-87, F-88                                                                                                                                                           |
+| `e2e/layout.spec.ts`                                                                  | F-58, F-92 – F-98, F-100 – F-105 (axe on every page, keyboard walk, 320–1920 px overflow sweep with explicit header checks at 640, 768 and 1024 px, reduced motion)        |
+| `e2e/fixtures/test.ts` (every spec)                                                   | F-109 (no CSP violation in the console)                                                                                                                                    |
+| `stylelint` + `check-no-utilities` (CI lint job)                                      | F-99                                                                                                                                                                       |
+| —                                                                                     | F-68 dropped by ADR-0011 (no test; the column does not exist)                                                                                                              |
 
 ## 15. CI/CD
 
-From `project-scaffold` unchanged except where noted ([ADR-0017](adr/0017-delivery-docker-ci-release.md)):
+From `project-scaffold` unchanged except where noted ([ADR-0017](adr/0017-delivery-docker-ci-release.md),
+CI cost rule [ADR-0018](adr/0018-ci-cost-rule.md)):
 
-- `ci.yml` on PR and push to main: `lint` (format, ESLint incl. `import-x/no-cycle`, stylelint, utility check,
-  **schema drift**: `drizzle-kit generate` must leave `apps/api/drizzle` unchanged), `typecheck`, `unit`,
-  `integration` (Testcontainers on the runner's Docker, one database per test file), `build`, `e2e` (throwaway
-  `.env` from `scripts/setup-env.mjs`, `pnpm test:e2e` → `scripts/run-e2e.mjs`, isolated compose project
-  `social-network-e2e`; report and `test-results/compose.log` uploaded on failure; Playwright `retries: 0`),
+- `ci.yml` on PR, push to main and `workflow_dispatch`: `lint` (format, ESLint incl. `import-x/no-cycle`, stylelint,
+  utility check, **schema drift**: `drizzle-kit generate` must leave `apps/api/drizzle` unchanged), `typecheck`,
+  `unit`, `integration` (Testcontainers on the runner's Docker, one database per test file), `build`,
   `dev-setup-smoke` (`pnpm dev:setup` twice, `.env` byte-identical), `gitleaks` (checksum-verified CLI, full
-  history). `permissions: contents: read`, concurrency cancel-in-progress, SHA-pinned actions,
+  history). **`e2e` runs on `pull_request` only** (`if: github.event_name == 'pull_request'`): throwaway `.env` from
+  `scripts/setup-env.mjs`, `pnpm exec playwright install --with-deps chromium`, `pnpm test:e2e` →
+  `scripts/run-e2e.mjs`, isolated compose project `social-network-e2e`; report and `test-results/` (incl.
+  `compose.log`) uploaded on failure; Playwright `retries: 0`; the template's "Stack logs"/"Tear down" steps for the
+  dev project are removed. `permissions: contents: read`, concurrency cancel-in-progress, SHA-pinned actions,
   `persist-credentials: false`.
 - `audit.yml`: `pnpm audit --prod --audit-level=high` weekly, on lockfile changes on `main` and on demand; not a PR
   check (conventions §9).
-- `release.yml` after a successful CI run on `main` (`workflow_run`, checks out `head_sha`): builds `ghcr.io/arnoldovna/social-network-api` and `-web` with tags `sha-<sha>` and
-  `latest`, provenance + SBOM; `deploy` job gated by `vars.DEPLOY_ENABLED == 'true'` and the `production`
-  environment (off).
+- `release.yml` after a successful CI run on `main` (`workflow_run` for a `push` event, plus `workflow_dispatch` on
+  `main`): job `images` runs **only when the repository is public** (`github.event.repository.private == false`) and
+  builds `ghcr.io/arnoldovna/social-network-api` and `-web` from `RELEASE_SHA` (= `workflow_run.head_sha`, the
+  commit CI tested) with tags `sha-<RELEASE_SHA>` and `latest`, the matching revision label, provenance + SBOM;
+  `deploy` (`needs: images`) additionally requires `vars.DEPLOY_ENABLED == 'true'` and the `production` environment.
+  While the repository is private both jobs show as skipped (ADR-0018).
 - Dependabot: npm (grouped prod/dev, cooldown 3 days, TS majors ignored), github-actions, docker and
   docker-compose. Every image (compose, Dockerfiles, Testcontainers via `test/images.ts`) is pinned by digest,
   so image updates arrive only as reviewed Dependabot PRs.
@@ -674,26 +699,42 @@ From `project-scaffold` unchanged except where noted ([ADR-0017](adr/0017-delive
 
 `docker-compose.yml` (template + additions in bold):
 
-| Service | Profile | Notes |
-|---|---|---|
-| postgres (18-alpine, **by digest**) | default | 127.0.0.1:5432, healthcheck |
-| redis (8-alpine, **by digest**) | default | no persistence, **`--maxmemory 128mb --maxmemory-policy volatile-ttl`**, healthcheck |
-| minio + minio-init (Chainguard, **by digest**, not `:latest`) | default | private bucket created by `mc mb` |
-| migrate | app | API image, `dist/db/migrate.js` |
-| **seed** | app | API image, `dist/db/seed/index.js`, **`SEED_ALLOW: 'true'`** (`NODE_ENV` stays `production`, conventions §8), **`SEED_DEMO_PASSWORD: ${SEED_DEMO_PASSWORD:?run pnpm setup:env}`**; depends on migrate + minio-init |
-| api | app | depends on migrate, **seed**, redis, minio-init; healthcheck `/health/ready`; `CORS_ORIGINS` = web origins; **`RATE_LIMIT_MULTIPLIER: ${RATE_LIMIT_MULTIPLIER:-1}`**; **`mem_limit: 768m`** |
-| web (nginx-unprivileged) | app | 127.0.0.1:8080; **`location /socket.io/` with `proxy_http_version 1.1`, `Upgrade`/`Connection` headers, `proxy_read_timeout 75s`**; `client_max_body_size 3m` with **`error_page 413` → `application/problem+json` (`file-too-large`)**; CSP without inline scripts |
+| Service                                                       | Profile | Notes                                                                                                                                                                                                                                                                                       |
+| ------------------------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| postgres (18-alpine, **by digest**)                           | default | 127.0.0.1:5432, healthcheck                                                                                                                                                                                                                                                                 |
+| redis (8-alpine, **by digest**)                               | default | no persistence, **`--maxmemory 128mb --maxmemory-policy volatile-ttl`**, healthcheck                                                                                                                                                                                                        |
+| minio + minio-init (Chainguard, **by digest**, not `:latest`) | default | private bucket created by `mc mb`                                                                                                                                                                                                                                                           |
+| migrate                                                       | app     | API image, `dist/db/migrate.js`                                                                                                                                                                                                                                                             |
+| **seed**                                                      | app     | API image, **`dist/db/seed/cli.js`**, **`SEED_ALLOW: 'true'`** (`NODE_ENV` stays `production`, conventions §8), **`SEED_DEMO_PASSWORD: ${SEED_DEMO_PASSWORD:?run pnpm setup:env}`** (this service only); depends on migrate + minio-init                                                    |
+| api                                                           | app     | depends on migrate, **seed** (`service_completed_successfully`), redis, minio-init; healthcheck `/health/ready`; **`CORS_ORIGINS: http://127.0.0.1:${WEB_PORT:-8080},http://localhost:${WEB_PORT:-8080}`**; **`RATE_LIMIT_MULTIPLIER: ${RATE_LIMIT_MULTIPLIER:-1}`**; **`mem_limit: 768m`** |
+| web (nginx-unprivileged)                                      | app     | 127.0.0.1:`${WEB_PORT:-8080}`; **`location /socket.io/` with `proxy_http_version 1.1`, `Upgrade`/`Connection` headers, `proxy_read_timeout 75s`**; `client_max_body_size 3m` with **`error_page 413` → `application/problem+json` (`file-too-large`)**; CSP without inline scripts          |
 
-`docker-compose.e2e.yml` (used only by `scripts/run-e2e.mjs`, project `social-network-e2e`): api
-`RATE_LIMIT_MULTIPLIER: 100`, no published ports for Postgres/Redis/MinIO (`ports: !reset []`), data on tmpfs, web
-on `127.0.0.1:${E2E_PORT:-8183}` (conventions §6).
+`docker-compose.e2e.yml` (used only by `scripts/run-e2e.mjs`, project `social-network-e2e`, `--profile app`;
+Compose ≥ 2.24.4; ADR-0019 §6):
 
-- `pnpm setup:env` → `scripts/setup-env.mjs`: creates `.env` from `.env.example` if missing (never overwrites),
-  fills every empty secret with random values (same generator as CI) and prints the demo login. Named
-  `setup:env` because `pnpm setup` is a built-in pnpm command.
-- `pnpm dev:setup` → `scripts/dev-setup.mjs`: checks tools, `setup:env` → `infra:up` → `db:migrate` → `db:seed`
-  (idempotent).
-- `pnpm demo` → `setup:env` + `stack:up` + prints http://127.0.0.1:8080 and the demo login (the recruiter path).
+| Service  | Override                                                                                                                                                                                 |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| api      | `RATE_LIMIT_MULTIPLIER: '100'`; `CORS_ORIGINS: http://127.0.0.1:${E2E_PORT:-8183},http://localhost:${E2E_PORT:-8183}` (without it every socket handshake from the e2e origin is refused) |
+| web      | `ports: !override ['127.0.0.1:${E2E_PORT:-8183}:8080']` (Compose concatenates a plain list, which would also publish 8080)                                                               |
+| postgres | `ports: !reset []`, `volumes: !reset []`, `tmpfs: ['/var/lib/postgresql']`                                                                                                               |
+| redis    | `ports: !reset []`                                                                                                                                                                       |
+| minio    | `ports: !reset []`, `volumes: !reset []`, `tmpfs: ['/data']`                                                                                                                             |
+
+So the e2e stack can run next to `pnpm dev` and `pnpm demo`, and every run starts from an empty, freshly seeded
+database.
+
+- `pnpm setup:env` → `scripts/setup-env.mjs`: creates `.env` from `.env.example` if missing (never overwrites; adds
+  missing keys), fills exactly the empty secrets `SESSION_SECRET`, `CSRF_SECRET`, `S3_SECRET_ACCESS_KEY`,
+  `SEED_DEMO_PASSWORD` with random values (the same script CI runs) and prints the demo login. `POSTGRES_PASSWORD`
+  stays `local-only`, because `DATABASE_URL` carries it literally. Named `setup:env` because `pnpm setup` is a
+  built-in pnpm command.
+- `pnpm dev:setup` → `scripts/dev-setup.mjs`: checks tools, `setup:env`, stops when `DATABASE_URL` and `POSTGRES_*`
+  disagree, then `infra:up` → `db:migrate` → `db:seed` (idempotent: the seed skips when the demo user exists).
+- `pnpm demo` → `scripts/dev-setup.mjs --demo`: tool check, `setup:env`, `stack:up`, then prints
+  `http://127.0.0.1:<WEB_PORT>` and the demo login (the recruiter path).
+- `pnpm stack:down` → `docker compose --profile app down` (data kept). Resetting local data is a documented manual
+  command, not a script: `docker compose --profile app down -v` (drops the Postgres and MinIO volumes), then
+  `pnpm dev:setup`. There is no `db:seed -- --reset` (ADR-0019 §7).
 - `pnpm infra:up` → infra only; `pnpm dev` → `tsx watch` API on :3000 + Vite on :5173 (proxy `/api`, `/health`,
   `/socket.io` with `ws: true`).
 - `pnpm stack:up` → production images on http://127.0.0.1:8080 with production limits;
@@ -701,7 +742,8 @@ on `127.0.0.1:${E2E_PORT:-8183}` (conventions §6).
   `E2E_PORT` 8183, Playwright, `down -v`; `pnpm e2e:up` / `pnpm e2e:down` start and stop that stack for the phase-5
   orchestrator (conventions §6).
 - The dev compose project name and its host ports are fixed, so only one dev stack and one `pnpm dev` can run per
-  machine; parallel build units never start them (BUILD-ORDER rule 6). The e2e stack is a separate project.
+  machine; parallel build units never start them (BUILD-ORDER rule 6). The e2e stack is a separate project with no
+  published infra ports; it can run next to the dev stack.
 - First run (development): `pnpm dev:setup && pnpm dev`.
 
 ## 17. Dependencies (exact versions)
@@ -711,7 +753,8 @@ a version published less than 24 h ago is replaced by the previous one (marked �
 
 **Runtime / tooling**: Node.js 26 (`.nvmrc` `26`, 26.13.1 "Lithium" Active LTS), pnpm 10.34.9 (`packageManager`;
 pnpm 12.21.0 is `latest`; PLAN.md does not pin a pnpm line, pnpm 10 is kept because the scaffold templates are
-verified with it, see ADR-0017), git ≥ 2.31, Docker images per `project-scaffold/references/versions.md`, each
+verified with it, see ADR-0017; on this machine a corepack shim provided through `~/.devenv.sh`,
+BUILD-ORDER Phase 0), git ≥ 2.31, Compose ≥ 2.24.4 (`!reset`/`!override` in `docker-compose.e2e.yml`), Docker images per `project-scaffold/references/versions.md`, each
 **pinned by digest** in the scaffold phase (`node:26-slim`, `gcr.io/distroless/nodejs26-debian13:nonroot`,
 `nginxinc/nginx-unprivileged:1.30-alpine`, `postgres:18-alpine`, `redis:8-alpine`, `cgr.dev/chainguard/minio`,
 `cgr.dev/chainguard/minio-client`; the Chainguard images have no version tags on the free tier, so the digest is
@@ -719,35 +762,35 @@ the version).
 
 **Root devDependencies**
 
-| Package | Version | | Package | Version |
-|---|---|---|---|---|
-| typescript | 6.0.3 (TS 7.0.2 is `latest`; typescript-eslint peers `<6.1`) | | typescript-eslint | 8.72.2 |
-| eslint | 10.15.0 | | @eslint/js | 10.0.1 |
-| eslint-plugin-boundaries | 7.4.3 † (7.4.4 < 24 h) | | eslint-import-resolver-typescript | 4.4.5 |
-| eslint-config-prettier | 10.1.8 | | globals | 17.14.0 |
-| prettier | 3.10.1 | | stylelint / stylelint-config-standard | 18.0.0 / 41.0.0 |
-| vitest / @vitest/coverage-v8 | 5.1.0 / 5.1.0 | | @playwright/test | 1.65.1 |
-| @axe-core/playwright | 4.14.0 | | lefthook | 2.2.2 |
-| @commitlint/cli / config-conventional | 21.2.4 / 21.2.4 | | lint-staged | 17.6.0 † (17.6.1 < 24 h) |
-| @types/node | 26.6.6 | | gitleaks (CLI) | 8.30.1 |
-| **eslint-plugin-import-x** | **4.18.1** (`import-x/no-cycle`; peers ESLint 10, `@typescript-eslint/utils` ^8.56) | | | |
+| Package                               | Version                                                                             |     | Package                               | Version                  |
+| ------------------------------------- | ----------------------------------------------------------------------------------- | --- | ------------------------------------- | ------------------------ |
+| typescript                            | 6.0.3 (TS 7.0.2 is `latest`; typescript-eslint peers `<6.1`)                        |     | typescript-eslint                     | 8.72.2                   |
+| eslint                                | 10.15.0                                                                             |     | @eslint/js                            | 10.0.1                   |
+| eslint-plugin-boundaries              | 7.4.3 † (7.4.4 < 24 h)                                                              |     | eslint-import-resolver-typescript     | 4.4.5                    |
+| eslint-config-prettier                | 10.1.8                                                                              |     | globals                               | 17.14.0                  |
+| prettier                              | 3.10.1                                                                              |     | stylelint / stylelint-config-standard | 18.0.0 / 41.0.0          |
+| vitest / @vitest/coverage-v8          | 5.1.0 / 5.1.0                                                                       |     | @playwright/test                      | 1.65.1                   |
+| @axe-core/playwright                  | 4.14.0                                                                              |     | lefthook                              | 2.2.2                    |
+| @commitlint/cli / config-conventional | 21.2.4 / 21.2.4                                                                     |     | lint-staged                           | 17.6.0 † (17.6.1 < 24 h) |
+| @types/node                           | 26.6.6                                                                              |     | gitleaks (CLI)                        | 8.30.1                   |
+| **eslint-plugin-import-x**            | **4.18.1** (`import-x/no-cycle`; peers ESLint 10, `@typescript-eslint/utils` ^8.56) |     |                                       |                          |
 
 **packages/shared**: zod 4.6.7 (only dependency).
 
 **apps/api dependencies**
 
-| Package | Version | | Package | Version |
-|---|---|---|---|---|
-| express | 5.3.0 | | zod | 4.6.7 |
-| drizzle-orm | 0.45.4 | | pg | 8.23.1 |
-| pino / pino-http | 10.4.0 / 11.0.0 | | helmet | 8.3.0 |
-| cors | 2.8.6 | | express-rate-limit / rate-limit-redis | 8.7.4 / 6.0.2 |
-| express-session | 1.19.0 | | connect-redis | 10.0.0 |
-| redis | 6.3.1 | | csrf-csrf | 4.1.0 |
-| cookie-parser | 1.4.7 | | argon2 | 0.45.2 |
-| multer | 2.5.0 | | file-type | 22.3.0 |
-| @aws-sdk/client-s3 | 3.1169.0 | | **sharp** | **0.35.5** (Node ≥ 20.9; prebuilt libvips, add to `onlyBuiltDependencies` only if its install script is needed) |
-| **socket.io** | **4.8.4** | | @app/shared | workspace:* |
+| Package            | Version         |     | Package                               | Version                                                                                                         |
+| ------------------ | --------------- | --- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| express            | 5.3.0           |     | zod                                   | 4.6.7                                                                                                           |
+| drizzle-orm        | 0.45.4          |     | pg                                    | 8.23.1                                                                                                          |
+| pino / pino-http   | 10.4.0 / 11.0.0 |     | helmet                                | 8.3.0                                                                                                           |
+| cors               | 2.8.6           |     | express-rate-limit / rate-limit-redis | 8.7.4 / 6.0.2                                                                                                   |
+| express-session    | 1.19.0          |     | connect-redis                         | 10.0.0                                                                                                          |
+| redis              | 6.3.1           |     | csrf-csrf                             | 4.1.0                                                                                                           |
+| cookie-parser      | 1.4.7           |     | argon2                                | 0.45.2                                                                                                          |
+| multer             | 2.5.0           |     | file-type                             | 22.3.0                                                                                                          |
+| @aws-sdk/client-s3 | 3.1169.0        |     | **sharp**                             | **0.35.5** (Node ≥ 20.9; prebuilt libvips, add to `onlyBuiltDependencies` only if its install script is needed) |
+| **socket.io**      | **4.8.4**       |     | @app/shared                           | workspace:*                                                                                                     |
 
 **apps/api devDependencies**: drizzle-kit 0.31.11, tsx 4.23.15, pino-pretty 13.2.0, supertest 7.3.2,
 testcontainers / @testcontainers/postgresql / @testcontainers/redis 12.2.1, **socket.io-client 4.8.4** (socket
@@ -756,13 +799,13 @@ integration tests), @types/express 5.0.6, @types/express-session 1.19.0, @types/
 
 **apps/web dependencies**
 
-| Package | Version | | Package | Version |
-|---|---|---|---|---|
-| react / react-dom | 19.3.1 / 19.3.1 | | react-router | 8.5.1 (peers react ≥ 19.2.7) |
-| @reduxjs/toolkit | 2.14.0 | | react-redux | 9.3.1 |
-| **socket.io-client** | **4.8.4** | | **react-hook-form** | **7.92.0** |
-| **@hookform/resolvers** | **7.0.6** (peers zod ^4) | | zod | 4.6.7 |
-| **@fontsource/schibsted-grotesk** | **5.3.0** (static 400/500, as in the template, ADR-0015) | | @app/shared | workspace:* |
+| Package                           | Version                                                  |     | Package             | Version                      |
+| --------------------------------- | -------------------------------------------------------- | --- | ------------------- | ---------------------------- |
+| react / react-dom                 | 19.3.1 / 19.3.1                                          |     | react-router        | 8.5.1 (peers react ≥ 19.2.7) |
+| @reduxjs/toolkit                  | 2.14.0                                                   |     | react-redux         | 9.3.1                        |
+| **socket.io-client**              | **4.8.4**                                                |     | **react-hook-form** | **7.92.0**                   |
+| **@hookform/resolvers**           | **7.0.6** (peers zod ^4)                                 |     | zod                 | 4.6.7                        |
+| **@fontsource/schibsted-grotesk** | **5.3.0** (static 400/500, as in the template, ADR-0015) |     | @app/shared         | workspace:*                  |
 
 **apps/web devDependencies**: vite 8.3.8, @vitejs/plugin-react 6.3.0, tailwindcss / @tailwindcss/vite 4.3.5,
 @testing-library/react 16.3.3, @testing-library/jest-dom 7.0.1, **@testing-library/dom 10.4.2** (required peer of
@@ -795,4 +838,25 @@ Testing Library role queries), `@socket.io/redis-adapter` 8.3.0 (single instance
   [0014 cursor pagination](adr/0014-cursor-pagination.md) ·
   [0015 design identity and CSS](adr/0015-design-identity-and-css.md) ·
   [0016 test strategy and E2E data](adr/0016-test-strategy-and-e2e-data.md) ·
-  [0017 delivery: Docker, CI, release](adr/0017-delivery-docker-ci-release.md)
+  [0017 delivery: Docker, CI, release](adr/0017-delivery-docker-ci-release.md) ·
+  [0018 CI cost rule](adr/0018-ci-cost-rule.md) ·
+  [0019 consistency-pass alignment](adr/0019-consistency-pass-alignment.md)
+
+## 19. Threats and controls per module
+
+OWASP ASVS level 2 mindset. Each row names the main threat and the control that handles it; details live in the ADR.
+
+| Module                         | Threat                                                                                         | Control                                                                                                                                                                                                                                                                       |
+| ------------------------------ | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| auth                           | credential stuffing, brute force, user enumeration, session fixation, CSRF on login/logout     | IP limiter + per-email-and-IP + per-email ceiling (ADR-0006); dummy-hash verify, one 401 message; `establishSession` regenerates the id and issues a new CSRF token; logout is CSRF-protected `POST`, destroys the session and its sockets (ADR-0005)                         |
+| users                          | data exposure (email, hash), search abuse, logging of names                                    | strict DTOs at every level (ADR-0003); `requireAuth`; search limiter 60/min/user, `%`/`_` escaped, limit ≤ 20; query string never logged (§12)                                                                                                                                |
+| avatars                        | stored XSS via polyglots, decompression bombs, path traversal, oversized bodies, public bucket | magic-byte allow-list, re-encode to WebP, header dimension check + `limitInputPixels`, server-generated keys with a DB CHECK, multer and nginx size limits, private bucket served through a session-protected route with `nosniff` (ADR-0010)                                 |
+| friends                        | forged state changes, duplicate or self requests, IDOR                                         | CSRF + `requireAuth`; addressee-only accept; pair unique index and self CHECK; zero rows → 404 (ADR-0004, ADR-0007)                                                                                                                                                           |
+| wall                           | reading or posting on strangers' walls, deleting others' posts, room snooping                  | owner-or-friend checks in the service, `wall:join` permission check, SQL delete guard + shared policy (ADR-0011, ADR-0003)                                                                                                                                                    |
+| chat                           | unauthenticated or cross-site socket use, flooding, oversized payloads, XSS in messages        | WebSocket-only with required allow-listed `Origin`, session on handshake and per mutating event, Zod, Redis rate limit, `maxHttpBufferSize` 16 KB, text rendered by React (no HTML) (ADR-0005, ADR-0008)                                                                      |
+| presence                       | leaking who is online to visitors, ghost entries, private fields in events                     | `requireAuth` and handshake auth; Redis sets with grace timer and boot cleanup; `UserSummary` only (ADR-0009)                                                                                                                                                                 |
+| shared/security, config        | weak or leaked secrets, missing headers, misconfigured CORS, forged sessions                   | Zod env with ≥ 32-char secrets and key-names-only errors; helmet + nginx CSP without inline scripts; explicit CORS allow-list that follows the published origin; app-scoped `__Host-` cookies, `HttpOnly`, `SameSite=Lax`; gitleaks pre-commit and in CI (ADR-0005, ADR-0017) |
+| test harness (`apps/api/test`) | the test-only sign-in route reaching production (authentication bypass)                        | outside `tsconfig.build.json` (never in `dist/` or the image), ESLint `no-restricted-imports` from `src`, only `createTestApp` passes `testRoutes`, `app.int.test.ts` asserts 404 without it (ADR-0019 §3)                                                                    |
+| seed                           | demo accounts with a shared password in a real database, destructive resets                    | explicit `SEED_ALLOW=true` per invocation, never `NODE_ENV`; insert-only, skips when the demo user exists; no reset command; password only from `SEED_DEMO_PASSWORD`, only in the `seed` service (ADR-0019 §7)                                                                |
+| web                            | XSS, token theft, stale data after logout                                                      | no `dangerouslySetInnerHTML`, CSP `script-src 'self'`; session in an `HttpOnly` cookie, CSRF token in memory only and cleared on logout/expiry; `resetApiState()` on logout and expiry (ADR-0012)                                                                             |
+| delivery (CI/CD, images)       | supply-chain drift, leaked credentials, publishing from a private repo                         | exact versions, `minimumReleaseAge`, digest-pinned images and SHA-pinned actions, `permissions: contents: read`, `persist-credentials: false`; images and deploy only for a public repository (ADR-0017, ADR-0018)                                                            |
