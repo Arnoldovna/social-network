@@ -74,7 +74,7 @@ services:
   # MinIO stopped publishing community images in Oct 2025; Chainguard ships a free, maintained build. Only `latest`
   # is free, so the digest is the version.
   minio:
-    image: cgr.dev/chainguard/minio:latest@sha256:59953701f8f8d0de81aab456f0b0b6c0a1804119415559bf7ede79d944108879
+    image: cgr.dev/chainguard/minio:latest@sha256:7618b82bba99aadd77fcf59eb6cfd89b4b8b8e01ac796c474d57a1c1abf17e79
     command: ['server', '/data', '--console-address', ':9001']
     environment:
       MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:?set S3_ACCESS_KEY_ID in .env (pnpm setup:env)}
@@ -93,7 +93,7 @@ services:
   # `up --wait` only accepts an exited one-shot that another started service depends on (seed and api, profile app),
   # so the infra-only path runs it with `docker compose run --rm minio-init` (pnpm infra:up).
   minio-init:
-    image: cgr.dev/chainguard/minio-client:latest@sha256:5eee28fde834bf5da476a6e0cfaf98dfe9625761bab9cd297ebb7125a261ba35
+    image: cgr.dev/chainguard/minio-client:latest@sha256:b26a2a817e83c41189d6462c21b378633f807f18b44e84157fd6b6f296b5fc6d
     command: ['mb', '--ignore-existing', 'local/${S3_BUCKET}']
     environment:
       MC_HOST_local: http://${S3_ACCESS_KEY_ID}:${S3_SECRET_ACCESS_KEY}@minio:9000
