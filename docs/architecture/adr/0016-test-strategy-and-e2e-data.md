@@ -47,8 +47,8 @@ status, { createdAt?, acceptedAt? })`, `insertWallPosts(db, ownerId, authorId, n
 - **E2E**: Playwright against the production images in the isolated compose project `social-network-e2e`
   (`scripts/run-e2e.mjs`, `E2E_PORT` 8183, conventions §6), projects desktop 1440×900 and mobile
   390×844, `expectNoA11yViolations` on every page state. Real-time journeys use two browser contexts (two users).
-  The fixture fails any test whose console shows a CSP violation. The smoke spec (from 1a/1c, before auth exists)
-  proves the WebSocket path through nginx with an anonymous raw WebSocket that must be upgraded and then rejected
+  The fixture fails any test whose console shows a CSP violation. The 1a/1c smoke spec (before auth exists; its checks moved
+  into `routing.spec.ts` in Phase 5) proves the WebSocket path through nginx with an anonymous raw WebSocket that must be upgraded and then rejected
   with `unauthorized`; `routing.spec`/`chat.spec` prove that a logged-in page reaches `connected` (ADR-0019 §6).
   In CI the e2e job runs on pull requests only (ADR-0018); `pnpm verify` runs it locally at every gate.
 - **E2E overrides**: all E2E traffic reaches the API through nginx from one client IP (the Docker gateway, with
@@ -67,6 +67,10 @@ status, { createdAt?, acceptedAt? })`, `insertWallPosts(db, ownerId, authorId, n
   - Mutation journeys create their own users through the API (`e2e/fixtures/api.ts`: CSRF token, register with a
     unique `e2e+<uuid>@example.com`, optional friendship) and log in by reusing the returned cookies
     (`storageState`). Tests never depend on each other.
+  - Shared real-time state (the one chat room, the online list) is written by parallel tests, including the same
+    test in the other Playwright project. A journey asserts only what holds whatever others write meanwhile (its own
+    rows, their relative order, a page that ends no earlier than its newest message), never which foreign rows share
+    a page with its own.
   - Read-only journeys (browse seeded profiles as a fresh user, "load older messages" over the seeded chat history)
     use the seeded demo data from the compose `seed` service without asserting counts and without logging in as a
     seeded account; there is no seed-readonly project. README screenshots use `pnpm demo`, never the e2e stack.

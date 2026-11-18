@@ -162,7 +162,7 @@ describe('AvatarButton (F-33, B-103)', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('is a real button named "Change profile picture" around a decorative picture in the header', async () => {
+  it('F-33, B-103: is a real button named "Change profile picture" around a decorative picture in the header', async () => {
     await renderSignedIn('header');
 
     const button = trigger();
@@ -181,7 +181,7 @@ describe('AvatarButton (F-33, B-103)', () => {
 });
 
 describe('AvatarUploadDialog (F-34, F-35, F-38; B-96, B-97)', () => {
-  it('opens as a modal with the file field focused and the current picture shown', async () => {
+  it('F-34, B-33: opens as a modal with the file field focused, the current picture shown and nothing to save', async () => {
     const { user } = await renderSignedIn();
 
     const dialog = await openDialog(user);
@@ -196,7 +196,7 @@ describe('AvatarUploadDialog (F-34, F-35, F-38; B-96, B-97)', () => {
     expect(saveButton()).toBeDisabled();
   });
 
-  it('closes with "close" and returns focus to the avatar button (B-96)', async () => {
+  it('B-96: closes with "close" and returns focus to the avatar button', async () => {
     const { user } = await renderSignedIn();
     const dialog = await openDialog(user);
 
@@ -206,7 +206,7 @@ describe('AvatarUploadDialog (F-34, F-35, F-38; B-96, B-97)', () => {
     expect(trigger()).toHaveFocus();
   });
 
-  it('closes on Escape (B-96)', async () => {
+  it('B-96: closes on Escape', async () => {
     const { user } = await renderSignedIn();
     const dialog = await openDialog(user);
 
@@ -244,7 +244,7 @@ describe('AvatarUploadDialog (F-34, F-35, F-38; B-96, B-97)', () => {
     expect(fileInput()).not.toHaveAttribute('aria-invalid');
   });
 
-  it('refuses a file of another type with a specific message and stays open (F-38)', async () => {
+  it('F-38, B-97: refuses a file of another type with a specific message and stays open', async () => {
     const { user } = await renderSignedIn();
     const dialog = await openDialog(user);
 

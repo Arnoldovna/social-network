@@ -15,11 +15,11 @@ function messages(result: { success: boolean; error?: { issues: { path: Property
 
 // B-09: the server validates registration with the same schema the form uses.
 describe('RegisterBody', () => {
-  it('accepts a valid registration', () => {
+  it('B-09: accepts a valid registration', () => {
     expect(RegisterBody.parse(valid)).toEqual(valid);
   });
 
-  it('reports every missing field together', () => {
+  it('B-09: reports every missing field together', () => {
     const result = RegisterBody.safeParse({});
     expect(result.success).toBe(false);
     expect(messages(result).map((issue) => issue.path)).toEqual(['firstName', 'lastName', 'email', 'password']);

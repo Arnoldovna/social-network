@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { check, index, integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 
+import { isTrimmed } from './trimmed.js';
 import { users } from './users.js';
 
 /**
@@ -19,7 +20,7 @@ export const chatMessages = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true, precision: 3 }).notNull().defaultNow(),
   },
   (t) => [
-    check('chat_messages_body_chk', sql`char_length(${t.body}) between 1 and 1000 and ${t.body} = btrim(${t.body})`),
+    check('chat_messages_body_chk', sql`char_length(${t.body}) between 1 and 1000 and ${isTrimmed(t.body)}`),
     // Keyset ordering of the chat: created_at DESC, id DESC (ADR-0014). `.nullsFirst()` matches Postgres' default for
     // ORDER BY ... DESC; drizzle's bare `.desc()` renders NULLS LAST, which the planner cannot use for that ordering.
     index('chat_messages_created_idx').on(t.createdAt.desc().nullsFirst(), t.id.desc().nullsFirst()),

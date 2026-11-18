@@ -2,7 +2,7 @@ import { CHAT_MAX, ChatMessage } from '@app/shared';
 import { and, eq } from 'drizzle-orm';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
-import { recordEvents, waitFor, waitForDisconnect } from '../../../../test/socket.js';
+import { connectAs, recordEvents, waitFor, waitForDisconnect } from '../../../../test/socket.js';
 import { createTestApp, type TestApp } from '../../../../test/test-app.js';
 import { chatMessages } from '../../../db/schema/index.js';
 import { rooms } from '../../../shared/realtime/rooms.js';
@@ -146,6 +146,31 @@ describe('chat:send validation (F-78, F-112, B-48)', () => {
     expect(await chatMessageCount(testApp.db, ada.user.id)).toBe(0);
     expect(grace.socket.connected).toBe(true);
     await expect(sendChatOk(grace.socket, 'Still here')).resolves.toMatchObject({ body: 'Still here' });
+  });
+});
+
+describe('chat:send is reachable only from the app (B-28, ADR-0005)', () => {
+  it('B-28: a cross-site page holding the signed-in cookie cannot open the socket, so it cannot send', async () => {
+    const victim = await signedInChatter(testApp);
+    const reader = await connectedChatter();
+    const received = recordEvents(reader.socket, 'chat:message');
+
+    // The socket carries the session cookie but no CSRF token, so the origin allow-list is what stops a forged page.
+    await expect(
+      connectAs(victim.agent, { baseUrl: testApp.baseUrl, origin: 'https://attacker.example' }),
+    ).rejects.toThrow();
+    await expect(connectAs(victim.agent, { baseUrl: testApp.baseUrl, origin: null })).rejects.toThrow();
+    expect(await chatMessageCount(testApp.db, victim.user.id)).toBe(0);
+
+    // Control: the same cookie from the app's origin connects and sends; the reader gets exactly that message.
+    const socket = await sockets.connect(testApp, victim.agent);
+    const delivered = waitFor(reader.socket, 'chat:message', {
+      filter: (message) => message.author.id === victim.user.id,
+    });
+    const sent = await sendChatOk(socket, 'From the app itself');
+    await expect(delivered).resolves.toStrictEqual(sent);
+    expect(received.filter((message) => message.author.id === victim.user.id)).toStrictEqual([sent]);
+    expect(await chatMessageCount(testApp.db, victim.user.id)).toBe(1);
   });
 });
 

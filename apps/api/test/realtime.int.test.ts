@@ -299,7 +299,7 @@ describe('the socket path (F-04, B-57, F-106, B-59)', () => {
     ['the socket.io client bundle (serveClient off)', `${SOCKET_PATH}/socket.io.js`],
     ['an unknown path below the socket path', `${SOCKET_PATH}/does-not-exist`],
   ])(
-    'F-04, B-57: %s is refused by engine.io with a JSON error, never an HTML page or a script',
+    'F-04, B-57, B-134: %s is refused by engine.io with a JSON error, never an HTML page or a script',
     async (_label, path) => {
       const response = await request(testApp.baseUrl).get(path).set('origin', TEST_ORIGIN);
 

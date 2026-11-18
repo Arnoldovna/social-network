@@ -6,7 +6,7 @@ import {
   problemCode,
   type ProblemCode,
 } from '@app/shared';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import request, { type Response } from 'supertest';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 
@@ -359,6 +359,80 @@ describe('DELETE /api/friendships/:userId', () => {
     );
     expectProblem(await visitor.delete(`/api/friendships/${String(jonas.id)}`), 401, 'unauthorized');
     expect(await rowBetween(mira.user.id, jonas.id)).toMatchObject({ status: 'accepted' });
+  });
+});
+
+/**
+ * The SQLSTATE and constraint of the Postgres error that rejected `statement` (Drizzle wraps the driver's error as
+ * `cause`). Fails when the statement succeeds.
+ */
+async function databaseRejection(statement: Promise<unknown>): Promise<{ code: unknown; constraint: unknown }> {
+  const error: unknown = await statement.then(
+    () => {
+      throw new Error('the statement succeeded, but the database should have rejected it');
+    },
+    (rejection: unknown) => rejection,
+  );
+  for (let current: unknown = error; current instanceof Error; current = current.cause) {
+    if ('code' in current && typeof current.code === 'string') {
+      return { code: current.code, constraint: 'constraint' in current ? current.constraint : undefined };
+    }
+  }
+  throw new Error(`the statement failed without a database error: ${String(error)}`);
+}
+
+describe('B-66: the friendships table enforces its own invariants', () => {
+  it('B-66: one row per pair in either direction, no self pair, accepted_at exactly when accepted, a status enum', async () => {
+    const [mira, jonas, lea] = [
+      await insertUser(testApp.db),
+      await insertUser(testApp.db),
+      await insertUser(testApp.db),
+    ];
+    const insert = (values: typeof friendships.$inferInsert) => testApp.db.insert(friendships).values(values);
+    await insert({ requesterId: mira.id, addresseeId: jonas.id, status: 'pending' });
+
+    // 23505 unique_violation, 23514 check_violation, 23503 foreign_key_violation, 22P02 invalid_text_representation.
+    expect(await databaseRejection(insert({ requesterId: mira.id, addresseeId: jonas.id }))).toEqual({
+      code: '23505',
+      constraint: 'friendships_pair_idx',
+    });
+    expect(await databaseRejection(insert({ requesterId: jonas.id, addresseeId: mira.id }))).toEqual({
+      code: '23505',
+      constraint: 'friendships_pair_idx',
+    });
+    expect(await databaseRejection(insert({ requesterId: lea.id, addresseeId: lea.id }))).toEqual({
+      code: '23514',
+      constraint: 'friendships_not_self_chk',
+    });
+    expect(await databaseRejection(insert({ requesterId: lea.id, addresseeId: mira.id, status: 'accepted' }))).toEqual({
+      code: '23514',
+      constraint: 'friendships_accepted_at_chk',
+    });
+    expect(
+      await databaseRejection(
+        insert({ requesterId: lea.id, addresseeId: mira.id, status: 'pending', acceptedAt: new Date() }),
+      ),
+    ).toEqual({ code: '23514', constraint: 'friendships_accepted_at_chk' });
+    expect(await databaseRejection(insert({ requesterId: lea.id, addresseeId: UNKNOWN_USER_ID }))).toEqual({
+      code: '23503',
+      constraint: 'friendships_addressee_id_users_id_fk',
+    });
+    expect(
+      await databaseRejection(
+        testApp.db.execute(
+          sql`insert into friendships (requester_id, addressee_id, status) values (${lea.id}, ${jonas.id}, 'blocked')`,
+        ),
+      ),
+    ).toMatchObject({ code: '22P02' });
+
+    // Only the first row exists; a valid accepted row for another pair is still accepted.
+    expect(await rowBetween(mira.id, jonas.id)).toMatchObject({
+      requesterId: mira.id,
+      addresseeId: jonas.id,
+    });
+    await expect(
+      insert({ requesterId: lea.id, addresseeId: mira.id, status: 'accepted', acceptedAt: new Date() }),
+    ).resolves.toBeDefined();
   });
 });
 

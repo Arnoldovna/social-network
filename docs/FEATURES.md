@@ -286,9 +286,9 @@ Friendship state machine between the current user (me) and another user
 - **F-73** A user's unsent draft is never cleared by incoming posts from other
   users; the draft is cleared only after the own post was saved. `[e2e]`
 - **F-74** Empty wall shows "No posts yet." plus, if the viewer may post,
-  "Write the first one!". **(new)** `[e2e]`
+  "Write the first one." (no exclamation marks, maw-design-system §10). **(new)** `[e2e]`
 - **F-75** Ctrl/Cmd+Enter submits; the textarea has a visible label
-  ("Write on <name>'s wall"). **(new)** `[a11y][e2e]`
+  ("write on <name>'s wall"; labels are lowercase, maw-design-system). **(new)** `[a11y][e2e]`
 
 ## 10. Global chat (module `chat`)
 

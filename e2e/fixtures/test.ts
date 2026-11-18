@@ -8,7 +8,8 @@ import { registerUser, type E2EUser, type RegisterFields } from './api.js';
  * - fails a test when any browser context it used logged a console message containing "Content Security Policy"
  *   (Chromium reports every blocked load, inline script or connection that way, e.g. "Refused to connect to … because
  *   it violates the following Content Security Policy directive: …"), so the strict nginx CSP (B-107) is checked on
- *   every journey without each spec listening for it;
+ *   every journey without each spec listening for it. The one message it ignores is the trace snapshotter's own
+ *   (`isTraceSnapshotBlobFetch`), so failure traces keep their DOM snapshots in every spec;
  * - registers users through the real API (`createUser`, `user`) and disposes their clients afterwards;
  * - opens pages that are already signed in (`pageAs(user)`, `userPage`), each in its own browser context created from
  *   the user's `storageState`, so two users in one test are two independent browsers (real-time journeys).
@@ -17,6 +18,24 @@ import { registerUser, type E2EUser, type RegisterFields } from './api.js';
  */
 
 const CSP_CONSOLE_MARKER = 'Content Security Policy';
+
+/** Chromium's wording for a blocked fetch of a `blob:` URL under the app's `connect-src 'self'` (B-107). */
+const BLOCKED_BLOB_FETCH =
+  /^Connecting to '(blob:[^']+)' violates the following Content Security Policy directive: "connect-src 'self'"\. The request has been blocked\.$/;
+
+/**
+ * True for the one CSP report the harness causes itself: while it records a trace, Playwright's DOM snapshotter fetches
+ * the page's `blob:` image URLs from inside the page to store them, and for a preview the browser cannot decode (an
+ * invalid avatar file, F-38) the app's `connect-src 'self'` rightly blocks that fetch. The app itself only shows its own
+ * `blob:` URLs as images (governed by `img-src`, reported with other words) and never connects to one, so exactly this
+ * message for a blob of the page's own origin is ignored. Anything else still fails the test, and if Chromium rewords
+ * the message, the filter stops matching and the false report comes back loudly instead of hiding a real one.
+ */
+function isTraceSnapshotBlobFetch(text: string, pageUrl: string): boolean {
+  const blobUrl = BLOCKED_BLOB_FETCH.exec(text.trim())?.[1];
+  if (blobUrl === undefined || !URL.canParse(pageUrl)) return false;
+  return URL.canParse(blobUrl) && new URL(blobUrl).origin === new URL(pageUrl).origin;
+}
 
 export interface E2EFixtures {
   /** CSP console messages of every context of this test; asserted empty when the test ends. */
@@ -34,10 +53,11 @@ export interface E2EFixtures {
 function watchForCspViolations(context: BrowserContext, violations: string[]): void {
   context.on('console', (message) => {
     const text = message.text();
-    if (text.includes(CSP_CONSOLE_MARKER)) {
-      const { url } = message.location();
-      violations.push(`[${message.type()}] ${url === '' ? (message.page()?.url() ?? 'unknown page') : url}: ${text}`);
-    }
+    if (!text.includes(CSP_CONSOLE_MARKER)) return;
+    const { url } = message.location();
+    const pageUrl = url === '' ? (message.page()?.url() ?? '') : url;
+    if (isTraceSnapshotBlobFetch(text, pageUrl)) return;
+    violations.push(`[${message.type()}] ${pageUrl === '' ? 'unknown page' : pageUrl}: ${text}`);
   });
 }
 

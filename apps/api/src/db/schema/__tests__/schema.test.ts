@@ -6,6 +6,7 @@ import { getTableConfig, PgDialect, PgTimestamp, type PgTable } from 'drizzle-or
 import { describe, expect, it } from 'vitest';
 
 import { chatMessages, friendships, friendshipStatus, users, wallPosts } from '../index.js';
+import { JS_TRIM_CLASS } from '../trimmed.js';
 
 // Guards the schema against drifting from DATA-MODEL.md and ADR-0007/ADR-0014. The CI drift check only proves that
 // the committed migration matches this schema; these tests prove the schema matches the documented decisions.
@@ -79,7 +80,7 @@ describe('db schema (DATA-MODEL.md)', () => {
     }
   });
 
-  it('cascades every foreign key to users on delete (B-67)', () => {
+  it('B-67: cascades every foreign key to users on delete', () => {
     const foreignKeys = Object.values(tables).flatMap((table) => getTableConfig(table).foreignKeys);
 
     expect(foreignKeys.map((foreignKey) => foreignKey.getName()).sort()).toEqual([
@@ -123,7 +124,7 @@ describe('keyset indexes (ADR-0014)', () => {
   });
 });
 
-describe('CHECK constraints mirror the shared Zod limits (B-65)', () => {
+describe('B-65: CHECK constraints mirror the shared Zod limits', () => {
   it.each([
     ['users_email_len_chk', users, `between 3 and ${String(EMAIL_MAX)}`],
     ['users_first_name_chk', users, `between 1 and ${String(NAME_MAX)}`],
@@ -136,12 +137,30 @@ describe('CHECK constraints mirror the shared Zod limits (B-65)', () => {
   });
 
   it.each([
-    ['users_first_name_chk', users, 'btrim("users"."first_name")'],
-    ['users_last_name_chk', users, 'btrim("users"."last_name")'],
-    ['wall_posts_body_chk', wallPosts, 'btrim("wall_posts"."body")'],
-    ['chat_messages_body_chk', chatMessages, 'btrim("chat_messages"."body")'],
-  ] as const)('%s rejects untrimmed values', (name, table, expected) => {
-    expect(checkSql(table, name)).toContain(expected);
+    ['users_email_trimmed_chk', users, '"users"."email"'],
+    ['users_first_name_chk', users, '"users"."first_name"'],
+    ['users_last_name_chk', users, '"users"."last_name"'],
+    ['users_bio_chk', users, '"users"."bio"'],
+    ['wall_posts_body_chk', wallPosts, '"wall_posts"."body"'],
+    ['chat_messages_body_chk', chatMessages, '"chat_messages"."body"'],
+  ] as const)('%s rejects values JavaScript would trim', (name, table, column) => {
+    expect(checkSql(table, name)).toContain(`${column} !~ '^${JS_TRIM_CLASS}|${JS_TRIM_CLASS}$'`);
+    expect(checkSql(table, name)).not.toContain('btrim');
+  });
+
+  it('the whitespace class is exactly what String.prototype.trim removes, for every BMP code point', () => {
+    // The class only uses `\uXXXX` escapes and ranges, which POSIX AREs and JS regexes read identically, so comparing
+    // it with `trim()` in JS proves what the CHECK accepts. `db/__tests__/constraints.int.test.ts` proves that
+    // Postgres 18 reads the class the same way, code point for code point.
+    const trimmable = new RegExp(`^${JS_TRIM_CLASS}$`);
+    const mismatches: string[] = [];
+    for (let codePoint = 0; codePoint <= 0xffff; codePoint += 1) {
+      const character = String.fromCharCode(codePoint);
+      if (trimmable.test(character) !== (character.trim() === '')) {
+        mismatches.push(`U+${codePoint.toString(16).toUpperCase().padStart(4, '0')}`);
+      }
+    }
+    expect(mismatches).toEqual([]);
   });
 });
 

@@ -1,12 +1,15 @@
 import { sql } from 'drizzle-orm';
 import { check, index, integer, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
 
+import { isTrimmed } from './trimmed.js';
+
 /**
  * Accounts (DATA-MODEL.md, ADR-0007). Every column names its SQL name explicitly and `casing` is not configured, so
  * the `sql` templates of the checks and expression indexes below render exactly as written.
  *
  * Length limits mirror `packages/shared/src/user.ts` (`NAME_MAX`, `EMAIL_MAX`, `BIO_MAX`): Zod trims and checks on
- * the way in, the CHECK constraints keep the invariant for every other writer (seed, future scripts), B-65.
+ * the way in, the CHECK constraints keep the invariant for every other writer (seed, future scripts), B-65. "Trimmed" means
+ * what JavaScript's `trim()` means (`trimmed.ts`), not Postgres `btrim`.
  */
 export const users = pgTable(
   'users',
@@ -28,17 +31,12 @@ export const users = pgTable(
     // Case-insensitive uniqueness without the citext extension (ADR-0007). Emails are stored lower-cased anyway.
     uniqueIndex('users_email_lower_idx').on(sql`lower(${t.email})`),
     check('users_email_lowercase_chk', sql`${t.email} = lower(${t.email})`),
+    check('users_email_trimmed_chk', isTrimmed(t.email)),
     check('users_email_len_chk', sql`char_length(${t.email}) between 3 and 254`),
-    check(
-      'users_first_name_chk',
-      sql`char_length(${t.firstName}) between 1 and 100 and ${t.firstName} = btrim(${t.firstName})`,
-    ),
-    check(
-      'users_last_name_chk',
-      sql`char_length(${t.lastName}) between 1 and 100 and ${t.lastName} = btrim(${t.lastName})`,
-    ),
+    check('users_first_name_chk', sql`char_length(${t.firstName}) between 1 and 100 and ${isTrimmed(t.firstName)}`),
+    check('users_last_name_chk', sql`char_length(${t.lastName}) between 1 and 100 and ${isTrimmed(t.lastName)}`),
     // NULL means "no bio". An empty string is never stored (Zod maps '' to null).
-    check('users_bio_chk', sql`${t.bio} is null or (char_length(${t.bio}) between 1 and 1000)`),
+    check('users_bio_chk', sql`${t.bio} is null or (char_length(${t.bio}) between 1 and 1000 and ${isTrimmed(t.bio)})`),
     // Only server-generated keys of this very row can ever be stored (B-30): exactly the shape `newAvatarKey(id)`
     // builds (`shared/media/media-url.ts`: no leading zero, a lowercase UUID) and the row's own id as the key's user, so
     // `createAvatarUrl` can never meet a stored key it refuses. `\\.` in the template is `\.` in SQL: a literal dot.

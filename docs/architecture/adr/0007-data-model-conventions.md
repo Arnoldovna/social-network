@@ -43,8 +43,10 @@ generate` would produce a migration that is not committed (schema drift check in
 
 ## Consequences
 
-- The whole schema is defined once in the scaffold phase (single `0000_init` migration) so feature modules can be
-  built in parallel without migration conflicts.
+- The whole schema is defined once in the scaffold phase (`0000_init` migration) so feature modules can be
+  built in parallel without migration conflicts. The one later change, `0001_trim_checks_match_js` (after Phase 5,
+  B-65), makes the trimming CHECKs refuse exactly what Zod's `.trim()` removes, because `btrim` strips spaces only,
+  adds them for `bio` and `email` too, and first trims existing rows the way Zod would have.
 - Drizzle's rendering of expression indexes must still be reviewed in the generated SQL (checklist in
   DATA-MODEL.md), but the casing-related failure mode is gone.
 - Account deletion (out of scope) would be a single `DELETE FROM users` plus storage cleanup.

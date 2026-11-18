@@ -53,26 +53,49 @@ erDiagram
 
 ## Conventions
 
-| Topic        | Rule                                                                                                                                                                                                                                                                     |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Primary keys | `integer GENERATED ALWAYS AS IDENTITY`. 2^31 rows per table is far beyond the scope of this app; JS numbers stay exact; `req.session.userId: number`.                                                                                                                    |
-| Timestamps   | `timestamptz(3) NOT NULL DEFAULT now()` (millisecond precision, the same as a JS `Date`, so a keyset cursor round-trips exactly, ADR-0014); stored in UTC, formatted in the client with `Intl` (F-108, B-69).                                                            |
-| Text         | `text` + `CHECK (char_length(...) BETWEEN x AND y)` with the same limits as the Zod schemas in `packages/shared` (B-65). Values are trimmed by Zod and the DB rejects untrimmed values, so the invariant holds even for code paths that skip Zod (seed, future scripts). |
-| Foreign keys | Explicit `ON DELETE CASCADE` for everything owned by a user (B-67). No account deletion in v1, but the schema is ready for it.                                                                                                                                           |
-| Indexes      | One composite index per keyset ordering, one index per FK that is filtered on, expression indexes for case-insensitive lookups (B-68).                                                                                                                                   |
-| Names        | `users`, `friendships`, `wall_posts`, `chat_messages`; columns describe their content (B-64).                                                                                                                                                                            |
-| Row types    | `typeof table.$inferSelect` stays inside repositories; HTTP and socket layers only see DTOs from `packages/shared` (B-19).                                                                                                                                               |
+| Topic        | Rule                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Primary keys | `integer GENERATED ALWAYS AS IDENTITY`. 2^31 rows per table is far beyond the scope of this app; JS numbers stay exact; `req.session.userId: number`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Timestamps   | `timestamptz(3) NOT NULL DEFAULT now()` (millisecond precision, the same as a JS `Date`, so a keyset cursor round-trips exactly, ADR-0014); stored in UTC, formatted in the client with `Intl` (F-108, B-69).                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Text         | `text` + `CHECK (char_length(...) BETWEEN x AND y)` with the same limits as the Zod schemas in `packages/shared` (B-65). Values are trimmed by Zod and the DB rejects untrimmed values, so the invariant holds even for code paths that skip Zod (seed, future scripts). "Untrimmed" means what Zod's `.trim()` (`String.prototype.trim`) would change: `isTrimmed(column)` in `schema/trimmed.ts` refuses a leading or trailing character of the JavaScript whitespace class (tab, LF, VT, FF, CR, space, U+00A0, U+1680, U+2000–U+200A, U+2028, U+2029, U+202F, U+205F, U+3000, U+FEFF). Postgres `btrim(x)` strips spaces only and is not used (migration `0001`). |
+| Foreign keys | Explicit `ON DELETE CASCADE` for everything owned by a user (B-67). No account deletion in v1, but the schema is ready for it.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| Indexes      | One composite index per keyset ordering, one index per FK that is filtered on, expression indexes for case-insensitive lookups (B-68).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| Names        | `users`, `friendships`, `wall_posts`, `chat_messages`; columns describe their content (B-64).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| Row types    | `typeof table.$inferSelect` stays inside repositories; HTTP and socket layers only see DTOs from `packages/shared` (B-19).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 
 ## Schema (`apps/api/src/db/schema/*.ts`)
 
-All four files plus `index.ts` are written in the **scaffold phase** (see BUILD-ORDER.md) so the single initial
-migration exists before feature modules are built in parallel.
+All four files plus `index.ts` and the `trimmed.ts` helper are written in the **scaffold phase** (see BUILD-ORDER.md) so
+the initial migration exists before feature modules are built in parallel. The trimming checks below were corrected
+after Phase 5 (migration `0001_trim_checks_match_js`, B-65).
+
+### `trimmed.ts`
+
+```ts
+import { type SQL, sql } from 'drizzle-orm';
+import type { AnyPgColumn } from 'drizzle-orm/pg-core';
+
+/** Exactly the characters String.prototype.trim removes (ECMAScript WhiteSpace + LineTerminator), as ARE escapes. */
+export const JS_TRIM_CLASS =
+  '[\\u0009-\\u000D\\u0020\\u00A0\\u1680\\u2000-\\u200A\\u2028\\u2029\\u202F\\u205F\\u3000\\uFEFF]';
+
+export function isTrimmed(column: AnyPgColumn): SQL {
+  return sql`${column} !~ ${sql.raw(`'^${JS_TRIM_CLASS}|${JS_TRIM_CLASS}$'`)}`;
+}
+```
+
+`schema.test.ts` proves the class equals `trim()` for every BMP code point; `db/__tests__/constraints.int.test.ts`
+proves that Postgres 18 reads the class the same way for every BMP code point and that every trimmed column (names,
+email, bio, post and message bodies) refuses a leading or trailing tab, line break or Unicode space;
+`db/__tests__/migrations.int.test.ts` proves the upgrade of a `0000` database.
 
 ### `users.ts`
 
 ```ts
 import { sql } from 'drizzle-orm';
 import { check, index, integer, pgTable, text, timestamp, uniqueIndex } from 'drizzle-orm/pg-core';
+
+import { isTrimmed } from './trimmed.js';
 
 export const users = pgTable(
   'users',
@@ -94,17 +117,12 @@ export const users = pgTable(
     // Case-insensitive uniqueness without the citext extension (ADR-0007). Emails are stored lower-cased anyway.
     uniqueIndex('users_email_lower_idx').on(sql`lower(${t.email})`),
     check('users_email_lowercase_chk', sql`${t.email} = lower(${t.email})`),
+    check('users_email_trimmed_chk', isTrimmed(t.email)),
     check('users_email_len_chk', sql`char_length(${t.email}) between 3 and 254`),
-    check(
-      'users_first_name_chk',
-      sql`char_length(${t.firstName}) between 1 and 100 and ${t.firstName} = btrim(${t.firstName})`,
-    ),
-    check(
-      'users_last_name_chk',
-      sql`char_length(${t.lastName}) between 1 and 100 and ${t.lastName} = btrim(${t.lastName})`,
-    ),
+    check('users_first_name_chk', sql`char_length(${t.firstName}) between 1 and 100 and ${isTrimmed(t.firstName)}`),
+    check('users_last_name_chk', sql`char_length(${t.lastName}) between 1 and 100 and ${isTrimmed(t.lastName)}`),
     // NULL means "no bio". An empty string is never stored (Zod maps '' to null).
-    check('users_bio_chk', sql`${t.bio} is null or (char_length(${t.bio}) between 1 and 1000)`),
+    check('users_bio_chk', sql`${t.bio} is null or (char_length(${t.bio}) between 1 and 1000 and ${isTrimmed(t.bio)})`),
     // Only server-generated keys of this very row can ever be stored (B-30): exactly the shape `newAvatarKey(id)`
     // builds (no leading zero, a lowercase UUID) and the row's own id as the key's user, so `createAvatarUrl` can never
     // meet a stored key it refuses (a key of another user would make every list that includes this user a 500).
@@ -176,6 +194,7 @@ State derivation (repository → service, never stored as text, B-53):
 import { sql } from 'drizzle-orm';
 import { check, index, integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 
+import { isTrimmed } from './trimmed.js';
 import { users } from './users.js';
 
 export const wallPosts = pgTable(
@@ -193,7 +212,7 @@ export const wallPosts = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true, precision: 3 }).notNull().defaultNow(),
   },
   (t) => [
-    check('wall_posts_body_chk', sql`char_length(${t.body}) between 1 and 2000 and ${t.body} = btrim(${t.body})`),
+    check('wall_posts_body_chk', sql`char_length(${t.body}) between 1 and 2000 and ${isTrimmed(t.body)}`),
     index('wall_posts_wall_created_idx').on(t.wallOwnerId, t.createdAt.desc().nullsFirst(), t.id.desc().nullsFirst()),
     index('wall_posts_author_idx').on(t.authorId),
   ],
@@ -209,6 +228,7 @@ No `image_key` column: wall image posts (F-68) are out of scope for v1
 import { sql } from 'drizzle-orm';
 import { check, index, integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 
+import { isTrimmed } from './trimmed.js';
 import { users } from './users.js';
 
 export const chatMessages = pgTable(
@@ -223,7 +243,7 @@ export const chatMessages = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true, precision: 3 }).notNull().defaultNow(),
   },
   (t) => [
-    check('chat_messages_body_chk', sql`char_length(${t.body}) between 1 and 1000 and ${t.body} = btrim(${t.body})`),
+    check('chat_messages_body_chk', sql`char_length(${t.body}) between 1 and 1000 and ${isTrimmed(t.body)}`),
     index('chat_messages_created_idx').on(t.createdAt.desc().nullsFirst(), t.id.desc().nullsFirst()),
     index('chat_messages_author_idx').on(t.authorId),
   ],
@@ -293,7 +313,12 @@ journal has no entries (Phase 1a skeleton, conventions §3).
 - Schema drift is caught in CI: the `lint` job runs `drizzle-kit generate` and fails if `apps/api/drizzle` then
   differs from the commit (`git diff --exit-code` + no untracked files), so a schema edit without its migration
   cannot merge.
-- v1 ships exactly one migration, `0000_init`, generated in the scaffold phase from the complete schema above.
+- v1 ships `0000_init`, generated in the scaffold phase from the complete schema above, and
+  `0001_trim_checks_match_js`, added by the orchestrator after Phase 5: it drops and re-adds the trimming checks
+  with `isTrimmed()` because `btrim` let a leading or trailing tab or line break through, and adds the missing ones
+  for `bio` and `email` (`users_email_trimmed_chk`), which Zod trims as well (B-65). Before adding them it trims
+  existing rows the way Zod would have (a bio that ends up empty becomes `NULL`); a name, post or message that is
+  nothing but whitespace cannot be repaired, so the length check fails and the whole migration rolls back.
   Feature phases must not change the schema; if a builder needs a change, it is a new migration added after the
   phase by one agent only (migrations are sequential and cannot be generated in parallel).
 - Local: `pnpm db:migrate` (tsx, `.env`). Docker / CI e2e: the one-shot `migrate` compose service runs

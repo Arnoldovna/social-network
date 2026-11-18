@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 
 import { request, type APIRequestContext, type APIResponse } from '@playwright/test';
 
+import { pngAvatar, type UploadFile } from './images.js';
+
 /**
  * Test data through the real API (ADR-0016 "E2E data"): every mutation journey registers its own users with a unique
  * `e2e+<uuid>@example.com`, optionally makes them friends, and opens pages that reuse the API session's cookies
@@ -13,6 +15,12 @@ import { request, type APIRequestContext, type APIResponse } from '@playwright/t
 
 /** Header the API reads the CSRF token from (API.md "CSRF", `apps/api/src/shared/security/csrf.ts`). */
 export const CSRF_HEADER = 'x-csrf-token';
+
+/** `PROBLEM_TYPE_PREFIX` in `packages/shared/src/problem.ts`: every problem `type` is this plus its code (ADR-0004). */
+export const PROBLEM_TYPE_PREFIX = 'tag:arnoldovna.github.io,2026:social-network:problem:';
+
+/** The path of the own avatar (`PUT` uploads, API.md §2). */
+export const AVATAR_PATH = '/api/me/avatar';
 
 export type StorageState = Awaited<ReturnType<APIRequestContext['storageState']>>;
 
@@ -62,6 +70,8 @@ export interface ApiClient {
   post(path: string, body?: JsonBody, options?: MutationOptions): Promise<APIResponse>;
   patch(path: string, body?: JsonBody, options?: MutationOptions): Promise<APIResponse>;
   delete(path: string, options?: MutationOptions): Promise<APIResponse>;
+  /** A `multipart/form-data` PUT (file uploads), with the CSRF token like every other mutation. */
+  put(path: string, multipart: Record<string, UploadFile>, options?: MutationOptions): Promise<APIResponse>;
   /** Cookies (session, CSRF) in the shape `browser.newContext({ storageState })` accepts. */
   storageState(): Promise<StorageState>;
   dispose(): Promise<void>;
@@ -88,7 +98,7 @@ export async function expectStatus(response: APIResponse, expected: number, step
   }
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
@@ -174,6 +184,7 @@ export async function createApiClient(baseURL: string): Promise<ApiClient> {
     post: (path, body, options) => context.post(path, mutation(body, options)),
     patch: (path, body, options) => context.patch(path, mutation(body, options)),
     delete: (path, options) => context.delete(path, { headers: headers(options) }),
+    put: (path, multipart, options) => context.put(path, { headers: headers(options), multipart }),
     storageState: () => context.storageState(),
     dispose: () => context.dispose(),
   };
@@ -249,4 +260,23 @@ export async function befriend(a: E2EUser, b: E2EUser): Promise<void> {
   await expectStatus(response, 200, step);
   const change = parseFriendshipChange(await response.json(), step);
   if (change.state !== 'friends') throw contractError(step, change);
+}
+
+/** Sets the bio through `PATCH /api/me` as a precondition. */
+export async function setBio(user: E2EUser, bio: string): Promise<void> {
+  await expectStatus(await user.api.patch('/api/me', { bio }), 200, 'PATCH /api/me');
+}
+
+/** `PUT /api/me/avatar` with `file` (a solid-colour PNG by default) as a precondition; returns the new `avatarUrl`. */
+export async function uploadAvatar(
+  user: E2EUser,
+  file: UploadFile = pngAvatar({ rgb: [40, 90, 196] }),
+): Promise<string> {
+  const step = `PUT ${AVATAR_PATH} (by ${String(user.id)})`;
+  const response = await user.api.put(AVATAR_PATH, { avatar: file });
+  await expectStatus(response, 200, step);
+  const body: unknown = await response.json();
+  const avatarUrl = isRecord(body) && isRecord(body['user']) ? body['user']['avatarUrl'] : undefined;
+  if (typeof avatarUrl !== 'string') throw contractError(step, body);
+  return avatarUrl;
 }

@@ -521,6 +521,71 @@ describe('POST /api/auth/logout', () => {
 });
 
 // ---------------------------------------------------------------------------------------------------------------
+// Failures are HTTP errors (B-54)
+// ---------------------------------------------------------------------------------------------------------------
+
+describe('B-54: every failed auth request has an error status', () => {
+  it('B-54: register, login and logout failures are 4xx problem+json, never 200 with a success flag', async () => {
+    const existing = await register(newAgent());
+    const visitor = newAgent();
+    await anonymousToken(visitor);
+
+    const failures = [
+      {
+        label: 'register with a taken email',
+        response: await visitor.post('/api/auth/register').send(registrationBody({ email: existing.email })),
+        status: 409,
+        code: 'email-taken',
+      },
+      {
+        label: 'register with invalid fields',
+        response: await visitor.post('/api/auth/register').send({ firstName: '', email: 'nope', password: 'short' }),
+        status: 422,
+        code: 'validation-failed',
+      },
+      {
+        label: 'register with malformed JSON',
+        response: await visitor.post('/api/auth/register').set('Content-Type', 'application/json').send('{"email":'),
+        status: 400,
+        code: 'invalid-request',
+      },
+      {
+        label: 'register without the CSRF token',
+        response: await visitor.post('/api/auth/register').unset(CSRF_HEADER).send(registrationBody()),
+        status: 403,
+        code: 'csrf-invalid',
+      },
+      {
+        label: 'login with a wrong password',
+        response: await visitor.post('/api/auth/login').send({ email: existing.email, password: 'not the password' }),
+        status: 401,
+        code: 'invalid-credentials',
+      },
+      {
+        label: 'login without a password',
+        response: await visitor.post('/api/auth/login').send({ email: existing.email }),
+        status: 422,
+        code: 'validation-failed',
+      },
+      {
+        label: 'logout without a session',
+        response: await visitor.post('/api/auth/logout'),
+        status: 401,
+        code: 'unauthorized',
+      },
+    ] as const satisfies readonly { label: string; response: Response; status: number; code: ProblemCode }[];
+
+    for (const { label, response, status, code } of failures) {
+      expect(response.status, label).toBe(status);
+      expectProblem(response, status, code);
+      // The legacy answers were `200 { success: false }` or `200 {}`; nothing of that shape is left.
+      expect(response.body, label).not.toHaveProperty('success');
+      expect(response.body, label).not.toHaveProperty('user');
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------
 // CSRF
 // ---------------------------------------------------------------------------------------------------------------
 

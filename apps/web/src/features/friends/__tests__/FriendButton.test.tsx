@@ -105,7 +105,7 @@ describe('FriendButton actions (F-46–F-53, B-26, B-95)', () => {
     ]);
   });
 
-  it('F-51, B-95: a double click while the request runs sends one request', async () => {
+  it('F-51, B-25, B-95: a double click while the request runs sends one request', async () => {
     const { calls, record } = recordMutations();
     const { gate, release } = deferred();
     server.use(

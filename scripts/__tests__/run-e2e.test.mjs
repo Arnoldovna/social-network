@@ -38,10 +38,10 @@ describe('run-e2e', () => {
   });
 
   it('B-139: passes everything except its own flags to Playwright', () => {
-    expect(parseArgs(['e2e/smoke.spec.ts', '--keep', '--project=desktop'])).toEqual({
+    expect(parseArgs(['e2e/routing.spec.ts', '--keep', '--project=desktop'])).toEqual({
       mode: 'test',
       keep: true,
-      playwrightArgs: ['e2e/smoke.spec.ts', '--project=desktop'],
+      playwrightArgs: ['e2e/routing.spec.ts', '--project=desktop'],
     });
     expect(parseArgs([])).toEqual({ mode: 'test', keep: false, playwrightArgs: [] });
     expect(parseArgs(['--up']).mode).toBe('up');

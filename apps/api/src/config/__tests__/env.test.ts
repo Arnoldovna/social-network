@@ -29,13 +29,19 @@ describe('loadEnv', () => {
     expect(() => loadEnv({ ...REQUIRED, UPLOAD_MAX_BYTES: '0' })).toThrow(/UPLOAD_MAX_BYTES/);
   });
 
-  it('B-01, F-110: names failing keys but never their values', () => {
+  it('B-01, B-02, B-03, F-110: names failing keys but never their values', () => {
     const secret = 'too-short-secret-value';
 
     const load = () => loadEnv({ ...REQUIRED, SESSION_SECRET: secret, CSRF_SECRET: '' });
 
     expect(load).toThrow(/SESSION_SECRET: must be at least 32 characters\n {2}- CSRF_SECRET: is required/);
     expect(load).not.toThrow(secret);
+  });
+
+  it('B-04: refuses to start without DATABASE_URL, the only source of the database credentials', () => {
+    const withoutDatabaseUrl = Object.fromEntries(Object.entries(REQUIRED).filter(([key]) => key !== 'DATABASE_URL'));
+
+    expect(() => loadEnv(withoutDatabaseUrl)).toThrow(/- DATABASE_URL: /);
   });
 
   it('OVERVIEW §13: session TTL, presence grace and rate-limit multiplier have their documented defaults', () => {

@@ -91,7 +91,7 @@ const binary = (agent: TestAgent, path: string) => agent.get(path).responseType(
 // --- PUT /api/me/avatar -------------------------------------------------------------------------------------------
 
 describe('PUT /api/me/avatar', () => {
-  it('F-36, B-62: stores a re-encoded 512 px WebP under a server key and answers MeResponse with avatarUrl', async () => {
+  it('F-36, B-62, B-05: stores a re-encoded 512 px WebP under a server key and answers MeResponse with avatarUrl', async () => {
     const { user, agent } = await signedInUser({ bio: 'Painter' });
 
     const response = await put(agent, await jpegImage(), 'photo.jpg', 'image/jpeg').expect(200);

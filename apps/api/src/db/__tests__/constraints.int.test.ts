@@ -9,12 +9,14 @@ import { currentDatabaseUrl } from '../../../test/database.js';
 import { insertChatMessages, insertFriendship, insertUser, insertWallPosts } from '../../../test/db.js';
 import type { Database } from '../client.js';
 import * as schema from '../schema/index.js';
+import { JS_TRIM_CLASS } from '../schema/trimmed.js';
 
 /**
- * The constraints of `drizzle/0000_init.sql` on the file's own clone of the migrated template database (DATA-MODEL,
- * ADR-0007, ADR-0014). The schema unit test checks how the tables are declared; this file checks what Postgres 18
- * actually enforces, because services rely on it: the pair index makes a reverse-direction request a conflict (B-25),
- * the CHECKs reject what Zod would also reject, and deleting a user cascades. Raw SQL with bound parameters keeps the
+ * The constraints of the migrations (`0000_init`, `0001_trim_checks_match_js`) on the file's own clone of the migrated
+ * template database (DATA-MODEL, ADR-0007, ADR-0014). The schema unit test checks how the tables are declared; this
+ * file checks what Postgres 18 actually enforces, because services rely on it: the pair index makes a
+ * reverse-direction request a conflict (B-25), the CHECKs reject what Zod would also reject, and deleting a user
+ * cascades. Raw SQL with bound parameters keeps the
  * failing statement visible; each rejection is asserted by SQLSTATE and constraint name.
  */
 
@@ -220,6 +222,79 @@ describe('wall posts and chat messages', () => {
       'x'.repeat(POST_MAX),
     ]);
     await pool.query('insert into chat_messages (author_id, body) values ($1, $2)', [a.id, 'x'.repeat(CHAT_MAX)]);
+  });
+});
+
+/** `U+00A0` for a code point, as error messages and the JS/Postgres comparison name characters. */
+function codePointName(codePoint: number): string {
+  return `U+${codePoint.toString(16).toUpperCase().padStart(4, '0')}`;
+}
+
+describe('B-65: "trimmed" means what String.prototype.trim (Zod `.trim()`) means', () => {
+  it("Postgres 18 reads the CHECKs' whitespace class exactly as JavaScript trims, for every BMP code point", async () => {
+    // Every code point a UTF-8 `text` can hold in the BMP (no NUL, no surrogates), matched by Postgres' ARE engine
+    // against the same class the CHECKs use. The schema unit test proves the class equals `trim()` in JS; this proves
+    // Postgres reads its `\uXXXX` escapes and ranges the same way, independent of the collation.
+    const { rows } = await pool.query<{ code_point: number }>(
+      `select code_point from generate_series(1, 65535) as code_point
+       where code_point not between 55296 and 57343 and chr(code_point) ~ $1
+       order by code_point`,
+      [`^${JS_TRIM_CLASS}$`],
+    );
+    const trimmedByJs: number[] = [];
+    for (let codePoint = 1; codePoint <= 0xffff; codePoint += 1) {
+      if (codePoint >= 0xd800 && codePoint <= 0xdfff) continue;
+      if (String.fromCharCode(codePoint).trim() === '') trimmedByJs.push(codePoint);
+    }
+
+    expect(rows.map((row) => codePointName(row.code_point))).toEqual(trimmedByJs.map(codePointName));
+  });
+
+  it('every trimmed column refuses a leading or trailing tab, line break or Unicode space, and only those', async () => {
+    const author = await insertUser(db);
+    // Every sample value contains "word"; the email column replaces it with a unique address, so the character under
+    // test stays at the very start or end of the stored value.
+    const columns: readonly {
+      constraint: string;
+      insert: (value: string) => [statement: string, params: unknown[]];
+    }[] = [
+      { constraint: 'users_first_name_chk', insert: (value) => [INSERT_USER, userParams({ first: value })] },
+      { constraint: 'users_last_name_chk', insert: (value) => [INSERT_USER, userParams({ last: value })] },
+      { constraint: 'users_bio_chk', insert: (value) => [INSERT_USER, userParams({ bio: value })] },
+      {
+        constraint: 'users_email_trimmed_chk',
+        insert: (value) => [INSERT_USER, userParams({ email: value.replace('word', `${randomUUID()}@example.com`) })],
+      },
+      {
+        constraint: 'wall_posts_body_chk',
+        insert: (value) => [
+          'insert into wall_posts (wall_owner_id, author_id, body) values ($1, $1, $2)',
+          [author.id, value],
+        ],
+      },
+      {
+        constraint: 'chat_messages_body_chk',
+        insert: (value) => ['insert into chat_messages (author_id, body) values ($1, $2)', [author.id, value]],
+      },
+    ];
+    // Tab, LF, NO-BREAK SPACE, FOUR-PER-EM SPACE (inside the U+2000–U+200A range), IDEOGRAPHIC SPACE, BOM.
+    const trimmed = ['\t', '\n', '\u00A0', '\u2005', '\u3000', '\uFEFF'];
+    // Neither ZERO WIDTH SPACE nor NEXT LINE is removed by `trim()`, and whitespace inside a value is content.
+    const kept = ['\u200Bword', 'word\u0085', 'two\u00A0word', 'line\nword'];
+
+    for (const { constraint, insert } of columns) {
+      for (const character of trimmed) {
+        for (const value of [`${character}word`, `word${character}`]) {
+          const [statement, params] = insert(value);
+          const label = `${constraint}: ${JSON.stringify(value)}`;
+          expect(await rejection(statement, params), label).toEqual({ code: CHECK_VIOLATION, constraint });
+        }
+      }
+      for (const value of kept) {
+        const [statement, params] = insert(value);
+        await expect(pool.query(statement, params), `${constraint}: ${JSON.stringify(value)}`).resolves.toBeDefined();
+      }
+    }
   });
 });
 

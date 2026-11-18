@@ -2,7 +2,11 @@ import { randomUUID } from 'node:crypto';
 
 import {
   BIO_MAX,
+  CHAT_MAX,
+  EMAIL_MAX,
   MeResponse,
+  NAME_MAX,
+  POST_MAX,
   PROBLEM_TYPE_PREFIX,
   Problem,
   type ProblemCode,
@@ -11,14 +15,21 @@ import {
   SearchResponse,
   UserProfileResponse,
 } from '@app/shared';
-import { eq } from 'drizzle-orm';
+import { count, eq, inArray, or, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
 import request, { type Response } from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { currentDatabaseUrl } from '../../../../test/database.js';
-import { insertFriendship, insertUser, type InsertUserFields, type UserRow } from '../../../../test/db.js';
+import {
+  insertChatMessages,
+  insertFriendship,
+  insertUser,
+  insertWallPosts,
+  type InsertUserFields,
+  type UserRow,
+} from '../../../../test/db.js';
 import { csrf, signIn, type TestAgent } from '../../../../test/http.js';
 import { createTestApp, TEST_RATE_LIMIT_MULTIPLIER, type TestApp } from '../../../../test/test-app.js';
 import { resolveLimits } from '../../../config/limits.js';
@@ -547,5 +558,224 @@ describe('GET /api/users/search rate limit', () => {
     const other = request.agent(limitedApp.app);
     await signIn(other, second.id);
     await other.get('/api/users/search').query({ q: 'ada' }).expect(200);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+// Failing dependencies (B-51) and the database's own guarantees (B-65, B-67)
+// ---------------------------------------------------------------------------------------------------------------
+
+describe('B-51: a failing database never leaves a request hanging', () => {
+  /** Well below the test timeout: a handler that never answers fails here, naming its route, not as a bare timeout. */
+  const ANSWER_WITHIN_MS = 5_000;
+
+  it('B-51, F-106: profile, bio and search answer the generic 500 problem while their table is gone, then recover', async () => {
+    const { agent, user } = await signedIn({ bio: 'Before the outage.' });
+    const other = await insertUser(testApp.db);
+    const calls = [
+      { path: '/api/me', send: () => agent.get('/api/me') },
+      { path: `/api/users/${String(other.id)}`, send: () => agent.get(`/api/users/${String(other.id)}`) },
+      { path: '/api/me', send: () => agent.patch('/api/me').send({ bio: 'During the outage.' }) },
+      { path: '/api/users/search', send: () => agent.get('/api/users/search').query({ q: 'test' }) },
+    ];
+
+    // Every query of these routes now fails inside Postgres ("relation does not exist"), like a lost database would.
+    await testApp.db.execute(sql`alter table users rename to users_offline`);
+    try {
+      for (const { path, send } of calls) {
+        const response = await send().timeout({ response: ANSWER_WITHIN_MS });
+
+        expect(response.status, path).toBe(500);
+        expect(response.headers['content-type']).toMatch(/^application\/problem\+json/);
+        expect(Problem.parse(response.body)).toEqual({
+          type: 'about:blank',
+          title: 'Internal server error',
+          status: 500,
+          detail: 'An unexpected error occurred.',
+          instance: path,
+        });
+        expect(response.text).not.toMatch(/users_offline|relation|postgres/i);
+        expect(response.text).not.toMatch(LEAK);
+      }
+    } finally {
+      await testApp.db.execute(sql`alter table users_offline rename to users`);
+    }
+
+    // The process kept serving: the same session works again, and the failed PATCH stored nothing.
+    expect(MeResponse.parse((await agent.get('/api/me').expect(200)).body).user.id).toBe(user.id);
+    expect(await storedBio(user.id)).toBe('Before the outage.');
+  });
+});
+
+/**
+ * The name of the constraint that rejected `statement`, read from the Postgres error behind it (Drizzle wraps the
+ * driver's error as `cause`). Fails when the statement succeeds or fails for another reason.
+ */
+async function violatedConstraint(statement: Promise<unknown>): Promise<string> {
+  const error: unknown = await statement.then(
+    () => {
+      throw new Error('the statement succeeded, but a constraint should have rejected it');
+    },
+    (rejection: unknown) => rejection,
+  );
+  for (let current: unknown = error; current instanceof Error; current = current.cause) {
+    if ('constraint' in current && typeof current.constraint === 'string') return current.constraint;
+  }
+  throw new Error(`the statement failed without a constraint violation: ${String(error)}`);
+}
+
+describe('database constraints behind the API (B-65, B-67)', () => {
+  it('B-65: the users table itself refuses names, emails and bios the API would refuse', async () => {
+    const cases: readonly [label: string, fields: InsertUserFields, constraint: string][] = [
+      ['an empty first name', { firstName: '' }, 'users_first_name_chk'],
+      ['an untrimmed first name', { firstName: ' Ada' }, 'users_first_name_chk'],
+      [
+        `a first name over ${String(NAME_MAX)} characters`,
+        { firstName: 'a'.repeat(NAME_MAX + 1) },
+        'users_first_name_chk',
+      ],
+      [
+        `a last name over ${String(NAME_MAX)} characters`,
+        { lastName: 'l'.repeat(NAME_MAX + 1) },
+        'users_last_name_chk',
+      ],
+      ['an email with upper-case letters', { email: `Ada-${randomUUID()}@Example.com` }, 'users_email_lowercase_chk'],
+      [
+        `an email over ${String(EMAIL_MAX)} characters`,
+        { email: `${'e'.repeat(EMAIL_MAX)}@x.io` },
+        'users_email_len_chk',
+      ],
+      ['an empty bio (no bio is null)', { bio: '' }, 'users_bio_chk'],
+      [`a bio over ${String(BIO_MAX)} characters`, { bio: 'b'.repeat(BIO_MAX + 1) }, 'users_bio_chk'],
+    ];
+
+    for (const [label, fields, constraint] of cases) {
+      expect(await violatedConstraint(insertUser(testApp.db, fields)), label).toBe(constraint);
+    }
+
+    // The limits themselves are allowed: the checks mirror the shared Zod limits, they are not stricter.
+    const longest = await insertUser(testApp.db, {
+      firstName: 'f'.repeat(NAME_MAX),
+      lastName: `${'l'.repeat(NAME_MAX - 9)}-${randomUUID().slice(0, 8)}`,
+      bio: 'b'.repeat(BIO_MAX),
+    });
+    expect(longest.firstName).toHaveLength(NAME_MAX);
+    expect(longest.bio).toHaveLength(BIO_MAX);
+    // An update is checked like an insert.
+    expect(
+      await violatedConstraint(
+        testApp.db
+          .update(schema.users)
+          .set({ bio: 'b'.repeat(BIO_MAX + 1) })
+          .where(eq(schema.users.id, longest.id)),
+      ),
+    ).toBe('users_bio_chk');
+  });
+
+  it('B-65: wall posts and chat messages are checked for trimming and length, up to exactly their limits', async () => {
+    const author = await insertUser(testApp.db);
+    const post = (body: string) => insertWallPosts(testApp.db, author.id, author.id, 1, { body: () => body });
+    const message = (body: string) => insertChatMessages(testApp.db, author.id, 1, { body: () => body });
+
+    expect(await violatedConstraint(post('p'.repeat(POST_MAX + 1)))).toBe('wall_posts_body_chk');
+    expect(await violatedConstraint(post(' padded '))).toBe('wall_posts_body_chk');
+    expect(await violatedConstraint(post(''))).toBe('wall_posts_body_chk');
+    expect(await violatedConstraint(message('m'.repeat(CHAT_MAX + 1)))).toBe('chat_messages_body_chk');
+    expect(await violatedConstraint(message('padded '))).toBe('chat_messages_body_chk');
+    expect(await violatedConstraint(message(''))).toBe('chat_messages_body_chk');
+
+    await expect(post('p'.repeat(POST_MAX))).resolves.toHaveLength(1);
+    await expect(message('m'.repeat(CHAT_MAX))).resolves.toHaveLength(1);
+  });
+
+  it('B-65: a leading or trailing line break or tab is refused like a space, as Zod trims it (DATA-MODEL "Text")', async () => {
+    // Zod's `.trim()` (String.prototype.trim) removes every kind of whitespace; DATA-MODEL promises that the table
+    // rejects any value Zod would have trimmed, also for code paths that skip Zod (seed, scripts).
+    const author = await insertUser(testApp.db);
+    const cases: readonly [label: string, statement: () => Promise<unknown>, constraint: string][] = [
+      [
+        'a first name ending in a line break',
+        () => insertUser(testApp.db, { firstName: 'Ada\n' }),
+        'users_first_name_chk',
+      ],
+      [
+        'a last name starting with a tab',
+        () => insertUser(testApp.db, { lastName: '\tLovelace' }),
+        'users_last_name_chk',
+      ],
+      [
+        'a post ending in a line break',
+        () => insertWallPosts(testApp.db, author.id, author.id, 1, { body: () => 'Hello\n' }),
+        'wall_posts_body_chk',
+      ],
+      [
+        'a chat message starting with a tab',
+        () => insertChatMessages(testApp.db, author.id, 1, { body: () => '\tHello' }),
+        'chat_messages_body_chk',
+      ],
+    ];
+
+    for (const [label, statement, constraint] of cases) {
+      expect(await violatedConstraint(statement()), label).toBe(constraint);
+    }
+  });
+
+  it('B-67: deleting a user removes their friendships, the posts they wrote or received and their messages', async () => {
+    const [mira, jonas, lea] = [
+      await insertUser(testApp.db),
+      await insertUser(testApp.db),
+      await insertUser(testApp.db),
+    ];
+    await insertFriendship(testApp.db, mira.id, jonas.id, 'accepted');
+    await insertFriendship(testApp.db, lea.id, mira.id, 'pending');
+    const untouchedFriendship = await insertFriendship(testApp.db, jonas.id, lea.id, 'accepted');
+    await insertWallPosts(testApp.db, mira.id, jonas.id, 2); // received by mira
+    await insertWallPosts(testApp.db, jonas.id, mira.id, 1); // written by mira
+    const [untouchedPost] = await insertWallPosts(testApp.db, jonas.id, lea.id, 1);
+    await insertChatMessages(testApp.db, mira.id, 3);
+    const [untouchedMessage] = await insertChatMessages(testApp.db, jonas.id, 1);
+
+    await testApp.db.delete(schema.users).where(eq(schema.users.id, mira.id));
+
+    const { friendships, wallPosts, chatMessages } = schema;
+    const [miraFriendships] = await testApp.db
+      .select({ total: count() })
+      .from(friendships)
+      .where(or(eq(friendships.requesterId, mira.id), eq(friendships.addresseeId, mira.id)));
+    const [miraPosts] = await testApp.db
+      .select({ total: count() })
+      .from(wallPosts)
+      .where(or(eq(wallPosts.wallOwnerId, mira.id), eq(wallPosts.authorId, mira.id)));
+    const [miraMessages] = await testApp.db
+      .select({ total: count() })
+      .from(chatMessages)
+      .where(eq(chatMessages.authorId, mira.id));
+    expect({ friendships: miraFriendships?.total, posts: miraPosts?.total, messages: miraMessages?.total }).toEqual({
+      friendships: 0,
+      posts: 0,
+      messages: 0,
+    });
+
+    // Rows between the other users stay as they were.
+    const remainingUsers = await testApp.db
+      .select({ id: schema.users.id })
+      .from(schema.users)
+      .where(inArray(schema.users.id, [mira.id, jonas.id, lea.id]));
+    expect(remainingUsers.map(({ id }) => id).sort((a, b) => a - b)).toEqual([jonas.id, lea.id].sort((a, b) => a - b));
+    expect(await testApp.db.select().from(friendships).where(eq(friendships.id, untouchedFriendship.id))).toEqual([
+      untouchedFriendship,
+    ]);
+    expect(
+      await testApp.db
+        .select()
+        .from(wallPosts)
+        .where(eq(wallPosts.id, untouchedPost?.id ?? -1)),
+    ).toEqual([untouchedPost]);
+    expect(
+      await testApp.db
+        .select()
+        .from(chatMessages)
+        .where(eq(chatMessages.id, untouchedMessage?.id ?? -1)),
+    ).toEqual([untouchedMessage]);
   });
 });

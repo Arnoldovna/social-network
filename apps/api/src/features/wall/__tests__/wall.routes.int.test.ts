@@ -406,6 +406,32 @@ describe('DELETE /api/posts/:id (F-71, B-21)', () => {
   });
 });
 
+describe('B-28: wall mutations are CSRF-protected HTTP requests', () => {
+  it('B-28: a forged request with only the session cookie can neither create nor delete a post', async () => {
+    const cast = await createWallCast(testApp);
+    const post = await createPost(cast.friend.agent, cast.owner.user.id, 'Stays put');
+    const before = await storedPosts(cast.owner.user.id);
+    const forgedFrom = 'https://attacker.example';
+
+    // A cross-site form or fetch carries the cookie but cannot read or set the token (ADR-0005, F-23).
+    const create = await cast.friend.agent
+      .post(postsPath(cast.owner.user.id))
+      .unset(CSRF_HEADER)
+      .set('Origin', forgedFrom)
+      .send({ body: 'Forged post' });
+    const remove = await cast.owner.agent.delete(postPath(post.id)).unset(CSRF_HEADER).set('Origin', forgedFrom);
+    const wrongToken = await cast.owner.agent
+      .delete(postPath(post.id))
+      .set(CSRF_HEADER, 'not-a-token-of-this-session')
+      .set('Origin', forgedFrom);
+
+    expectProblem(create, 403, 'csrf-invalid');
+    expectProblem(remove, 403, 'csrf-invalid');
+    expectProblem(wrongToken, 403, 'csrf-invalid');
+    expect(await storedPosts(cast.owner.user.id)).toEqual(before);
+  });
+});
+
 describe('write limiter (API.md §2: 60 wall and friendship writes per 10 min per user)', () => {
   let limitedApp: TestApp;
 

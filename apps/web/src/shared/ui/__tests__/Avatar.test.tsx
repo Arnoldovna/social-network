@@ -9,7 +9,7 @@ const AVATAR_URL = '/api/users/12/avatar?v=0f5b8c1e-4c1d-4f7e-9a39-3c3b5b0f2d11'
 const NEW_AVATAR_URL = '/api/users/12/avatar?v=7d2e9a40-1b6f-4b8c-8f0e-52a1c9d3e6b7';
 
 describe('Avatar', () => {
-  it('shows the picture with "<name>\'s profile picture" as alt text (F-101)', () => {
+  it('F-101, B-102: shows the picture with "<name>\'s profile picture" as alt text', () => {
     render(<Avatar firstName="Ada" lastName="Brennan" src={AVATAR_URL} />);
 
     const image = screen.getByRole('img', { name: "Ada Brennan's profile picture" });

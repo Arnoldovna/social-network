@@ -83,7 +83,7 @@ describe('seed content', () => {
     expect(designs(mulberry32(SEED_RANDOM_SEED))).toEqual(designs(mulberry32(SEED_RANDOM_SEED)));
   });
 
-  it('has 14 people with unique lower-case example.com emails, four without avatar and two without bio', () => {
+  it('F-115: has 14 people with unique lower-case example.com emails, four without avatar and two without bio', () => {
     expect(PEOPLE).toHaveLength(14);
     expect(DEMO_EMAIL).toBe('mira.novak@example.com');
     expect(new Set(PEOPLE.map((p) => p.email)).size).toBe(14);
@@ -93,7 +93,7 @@ describe('seed content', () => {
     expect(PEOPLE.filter((p) => p.bio === null).map((p) => p.handle)).toEqual(['mateo', 'hannah']);
   });
 
-  it('shows every friendship state from Mira’s point of view', () => {
+  it('F-115: shows every friendship state from Mira’s point of view', () => {
     const fromMira = (state: 'friends' | 'incoming' | 'outgoing') =>
       FRIENDSHIPS.filter((f) => {
         if (state === 'friends') return f.status === 'accepted' && (f.requester === 'mira' || f.addressee === 'mira');
@@ -123,7 +123,7 @@ describe('seed content', () => {
     }
   });
 
-  it('has more than two chat pages, and only trimmed texts within the limits, without emoji or filler', () => {
+  it('F-115: has more than two chat pages, and only trimmed texts within the limits, without emoji or filler', () => {
     expect(CHAT).toHaveLength(46);
     expect(CHAT.length).toBeGreaterThan(2 * PAGE_LIMIT_DEFAULT);
     const texts = [
@@ -256,7 +256,7 @@ describe('runSeed', () => {
     expect(await rowCounts()).toEqual(SEEDED);
   });
 
-  it('stores the 14 accounts with their own argon2id hash of the demo password and no plain text', async () => {
+  it('F-115: stores the 14 accounts with their own argon2id hash of the demo password and no plain text', async () => {
     const rows = await database.db.select().from(users).orderBy(asc(users.id));
     expect(rows.map((row) => row.email)).toEqual(PEOPLE.map((person) => person.email));
     expect(rows.map((row) => row.bio)).toEqual(PEOPLE.map((person) => person.bio));
@@ -271,7 +271,7 @@ describe('runSeed', () => {
     }
   });
 
-  it('gives ten people a generated 512 × 512 WebP avatar under their own server-made key', async () => {
+  it('F-115: gives ten people a generated 512 × 512 WebP avatar under their own server-made key', async () => {
     const rows = await database.db.select().from(users).orderBy(asc(users.id));
     const withAvatar = rows.filter((row) => row.avatarKey !== null);
     expect(withAvatar.map((row) => row.email)).toEqual(PEOPLE.filter((p) => p.avatar).map((p) => p.email));
@@ -289,7 +289,7 @@ describe('runSeed', () => {
     }
   });
 
-  it('writes the friendship graph, the walls and the chat as planned', async () => {
+  it('F-115: writes the friendship graph, the walls and the chat as planned', async () => {
     const people = await database.db.select({ id: users.id, email: users.email }).from(users);
     const handleOf = new Map(
       people.map((row) => [row.id, PEOPLE.find((person) => person.email === row.email)?.handle]),

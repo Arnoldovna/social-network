@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { check, index, integer, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 
+import { isTrimmed } from './trimmed.js';
 import { users } from './users.js';
 
 /**
@@ -22,7 +23,7 @@ export const wallPosts = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true, precision: 3 }).notNull().defaultNow(),
   },
   (t) => [
-    check('wall_posts_body_chk', sql`char_length(${t.body}) between 1 and 2000 and ${t.body} = btrim(${t.body})`),
+    check('wall_posts_body_chk', sql`char_length(${t.body}) between 1 and 2000 and ${isTrimmed(t.body)}`),
     // Keyset ordering of one wall: created_at DESC, id DESC (ADR-0014). `.nullsFirst()` because drizzle renders a bare
     // `.desc()` as DESC NULLS LAST, while ORDER BY ... DESC means NULLS FIRST in Postgres; with the mismatch the
     // planner sorts the whole wall instead of reading the index in order (verified with EXPLAIN on Postgres 18).

@@ -67,7 +67,7 @@ describe('ADR-0004: every code the API sends is a member of the shared ProblemCo
     expect(problem.errors).toEqual([issue]);
   });
 
-  it('maps multer LIMIT_FILE_SIZE to 413 file-too-large and every other MulterError to 400 invalid-request', async () => {
+  it('B-32: maps multer LIMIT_FILE_SIZE to 413 file-too-large and every other MulterError to 400 invalid-request', async () => {
     const tooLarge = await problemFor(new multer.MulterError('LIMIT_FILE_SIZE', 'avatar'));
     const unexpected = await problemFor(new multer.MulterError('LIMIT_UNEXPECTED_FILE', 'other'));
 
@@ -75,7 +75,7 @@ describe('ADR-0004: every code the API sends is a member of the shared ProblemCo
     expect([unexpected.status, problemCode(unexpected.problem)]).toEqual([400, 'invalid-request']);
   });
 
-  it("maps csrf-csrf's invalid token error to 403 csrf-invalid (the SPA retries once on it)", async () => {
+  it("B-58: maps csrf-csrf's invalid token error to 403 csrf-invalid (the SPA retries once on it)", async () => {
     const { invalidCsrfTokenError } = doubleCsrf({
       getSecret: () => 'test-csrf-secret-with-at-least-32-characters',
       getSessionIdentifier: () => 'session',
