@@ -8,6 +8,7 @@ description = "Generated, vendored and build output"
 paths = [
   '''(^|/)node_modules/''',
   '''(^|/)dist/''',
+  '''(^|/)dist-demo/''',
   '''(^|/)coverage/''',
   '''(^|/)playwright-report/''',
   '''(^|/)test-results/''',

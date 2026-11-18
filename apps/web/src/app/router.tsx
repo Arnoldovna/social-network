@@ -157,5 +157,6 @@ export function createRoutes(store: AppStore): RouteObject[] {
 
 /** The tab's one data router with real paths (F-03, B-140). `main.tsx` creates it once. */
 export function createAppRouter(store: AppStore) {
-  return createBrowserRouter(createRoutes(store));
+  // `/` in the real app; `/social-network/` in the GitHub Pages demo build (ADR-0020).
+  return createBrowserRouter(createRoutes(store), { basename: import.meta.env.BASE_URL });
 }

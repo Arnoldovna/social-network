@@ -9,6 +9,9 @@
   "scripts": {
     "dev": "pnpm --parallel --filter \"./apps/*\" run dev",
     "build": "pnpm --recursive run build",
+    "build:demo": "pnpm --filter @app/shared run build && pnpm --filter @app/web run build:demo",
+    "check:demo-build": "node scripts/check-demo-build.mjs",
+    "test:demo": "playwright test -c playwright.demo.config.ts",
     "lint": "eslint . --max-warnings=0",
     "lint:css": "stylelint \"apps/web/src/**/*.css\" --max-warnings=0",
     "check:utilities": "node scripts/check-no-utilities.mjs apps/web",
@@ -23,7 +26,7 @@
     "e2e:down": "node scripts/run-e2e.mjs --down",
     "media:readme": "playwright test -c playwright.media.config.ts",
     "secrets:scan": "gitleaks git --redact --no-banner && gitleaks dir . --config .gitleaks.dir.toml --redact --no-banner",
-    "verify": "pnpm format:check && pnpm lint && pnpm lint:css && pnpm check:utilities && pnpm typecheck && pnpm test && pnpm test:integration && pnpm build && pnpm test:e2e && pnpm secrets:scan",
+    "verify": "pnpm format:check && pnpm lint && pnpm lint:css && pnpm check:utilities && pnpm typecheck && pnpm test && pnpm test:integration && pnpm build && pnpm build:demo && pnpm check:demo-build && pnpm test:demo && pnpm test:e2e && pnpm secrets:scan",
     "setup:env": "node scripts/setup-env.mjs",
     "dev:setup": "node scripts/dev-setup.mjs",
     "demo": "node scripts/dev-setup.mjs --demo",

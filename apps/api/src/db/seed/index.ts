@@ -8,9 +8,16 @@ import type { ObjectStorage } from '../../shared/storage/object-storage.js';
 import type { ProcessedAvatar } from '../../shared/uploads/process-image.js';
 import type { Database } from '../client.js';
 import { chatMessages, friendships, users, wallPosts } from '../schema/index.js';
-import { pickAvatarDesign, renderAvatar } from './avatars.js';
-import { mulberry32, planTimeline, SEED_RANDOM_SEED, type SeedTimeline } from './content.js';
-import { DEMO_EMAIL, PEOPLE, type PersonHandle } from './people.js';
+import {
+  type AvatarDesign,
+  DEMO_EMAIL,
+  PEOPLE,
+  type PersonHandle,
+  planSeed,
+  type SeedTimeline,
+} from '@app/shared/demo-seed';
+
+import { renderAvatar } from './avatars.js';
 
 /**
  * Seed logic without side effects at import (DATA-MODEL.md, Seed plan; ADR-0019 §7), so `seed.int.test.ts` runs it
@@ -75,11 +82,11 @@ async function hashPasswords(password: string): Promise<string[]> {
 }
 
 /** The avatars of the people who get one, rendered before the transaction opens (CPU work, no I/O). */
-async function renderAvatars(random: () => number): Promise<Map<PersonHandle, ProcessedAvatar>> {
+async function renderAvatars(
+  designs: ReadonlyMap<PersonHandle, AvatarDesign>,
+): Promise<Map<PersonHandle, ProcessedAvatar>> {
   const avatars = new Map<PersonHandle, ProcessedAvatar>();
-  for (const person of PEOPLE) {
-    if (person.avatar) avatars.set(person.handle, await renderAvatar(pickAvatarDesign(random)));
-  }
+  for (const [handle, design] of designs) avatars.set(handle, await renderAvatar(design));
   return avatars;
 }
 
@@ -185,10 +192,9 @@ export async function runSeed({ db, storage, password, logger, now }: SeedDeps):
   };
   if (await demoUserExists(db)) return alreadySeeded();
 
-  const random = mulberry32(SEED_RANDOM_SEED);
-  const timeline = planTimeline(now(), random);
+  const { timeline, avatarDesigns } = planSeed(now());
   const hashes = await hashPasswords(password);
-  const avatars = await renderAvatars(random);
+  const avatars = await renderAvatars(avatarDesigns);
 
   const counts = await db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(${SEED_LOCK_KEY})`);

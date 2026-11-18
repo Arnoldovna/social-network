@@ -1,0 +1,33 @@
+@reference "#styles/main.css";
+
+/*
+ * Demo banner (ADR-0020): a flat accent field across the page above the app, black text on rose (maw-design-system
+ * §1, §4), aligned with the page column. Inside the field every text and the focus ring switch to on-accent (ADR-0015).
+ */
+@layer components {
+  .demo-banner {
+    @apply bg-accent text-on-accent;
+
+    --focus-color: var(--color-on-accent);
+  }
+
+  .demo-banner__inner {
+    @apply flex flex-wrap items-baseline gap-x-6 gap-y-2 mx-auto max-inline-page pbs-3 pbe-3 ps-3 pe-3 text-meta;
+
+    @variant sm {
+      @apply ps-5 pe-5;
+    }
+  }
+
+  .demo-banner__title {
+    @apply m-0 font-medium;
+  }
+
+  .demo-banner__text {
+    @apply m-0 max-inline-prose;
+  }
+
+  .demo-banner__reset {
+    @apply ms-auto;
+  }
+}

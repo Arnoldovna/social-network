@@ -2,8 +2,9 @@ import { type DemoPerson, PEOPLE, type PersonHandle } from './people.js';
 
 /**
  * What the demo shows (DATA-MODEL.md, Seed plan): the friendship graph, the wall posts, the shared chat and the
- * timeline that dates all of it. Pure data and pure functions; index.ts writes it. No lorem ipsum, no "Jane Doe", no
- * emoji (maw anti-AI checklist). Every text is trimmed and within the table's length check.
+ * timeline that dates all of it. Pure data and pure functions, written by the API seed (apps/api/src/db/seed) and by
+ * the GitHub Pages demo (apps/web/src/demo, ADR-0020). No lorem ipsum, no "Jane Doe", no emoji (maw anti-AI
+ * checklist). Every text is trimmed and within the table's length check.
  */
 
 // ---------------------------------------------------------------------------------------------------------------

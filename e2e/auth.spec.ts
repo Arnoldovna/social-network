@@ -1,7 +1,15 @@
 import type { BrowserContext, Locator, Page, Request, Response } from '@playwright/test';
 
 import { expectNoA11yViolations, expectNoA11yViolationsInBothSchemes } from './a11y.js';
-import { CSRF_HEADER, createApiClient, isRecord, logIn, newUserFields, type RegisterFields } from './fixtures/api.js';
+import {
+  CSRF_HEADER,
+  createApiClient,
+  type E2EUser,
+  isRecord,
+  logIn,
+  newUserFields,
+  type RegisterFields,
+} from './fixtures/api.js';
 import { observeRealtimeSockets, type ObservedSocket } from './fixtures/socket.js';
 import { expect, test } from './fixtures/test.js';
 import { fullName, mainNav, openHeaderPanelIfCollapsed, pageHeading, pageTitle } from './fixtures/ui.js';
@@ -383,6 +391,15 @@ test.describe('login', () => {
   });
 });
 
+/** Resolves once the own profile page's requests (me, own wall, friendships for the nav badge) have answered. */
+function profileRequestsAnswered(page: Page, user: E2EUser): Promise<unknown> {
+  return Promise.all(
+    ['/api/me', `/api/users/${String(user.id)}/posts`, '/api/friendships'].map((path) =>
+      page.waitForResponse((response) => new URL(response.url()).pathname === path),
+    ),
+  );
+}
+
 // --- logout and session end ---------------------------------------------------------------------------------------
 
 test.describe('logout and session end', () => {
@@ -458,11 +475,7 @@ test.describe('logout and session end', () => {
     const sockets = observeRealtimeSockets(page);
     // Every answer of the session renews its cookie (rolling sessions), so a request still in flight when the cookie is
     // swapped below would put the live cookie back. The profile page's own requests must have answered first.
-    const settled = Promise.all(
-      ['/api/me', `/api/users/${String(user.id)}/posts`, '/api/friendships'].map((path) =>
-        page.waitForResponse((response) => new URL(response.url()).pathname === path),
-      ),
-    );
+    const settled = profileRequestsAnswered(page, user);
     await page.goto('/');
     await expectOwnProfile(page, user);
     await expectOneConnectedSocket(sockets);
@@ -501,9 +514,13 @@ test.describe('logout and session end', () => {
   }) => {
     const page = await pageAs(user);
     const sockets = observeRealtimeSockets(page);
+    // The socket must be what notices the end: a profile request still in flight would answer 401 first and show its
+    // own error on the page that is being left.
+    const settled = profileRequestsAnswered(page, user);
     await page.goto('/');
     await expectOwnProfile(page, user);
     await expectOneConnectedSocket(sockets);
+    await settled;
 
     // The same session ends elsewhere (another tab of this browser logs out); the server disconnects its sockets.
     expect((await user.api.post('/api/auth/logout')).status()).toBe(204);

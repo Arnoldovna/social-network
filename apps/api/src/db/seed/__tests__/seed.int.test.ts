@@ -1,4 +1,20 @@
 import { CHAT_MAX, PAGE_LIMIT_DEFAULT, POST_MAX } from '@app/shared';
+import {
+  AVATAR_COMPOSITIONS,
+  AVATAR_PALETTE,
+  CHAT,
+  DEMO_EMAIL,
+  FRIENDSHIPS,
+  mulberry32,
+  PEOPLE,
+  type PersonHandle,
+  pickAvatarDesign,
+  planTimeline,
+  renderAvatarSvg,
+  SEED_RANDOM_SEED,
+  SEED_SPAN_DAYS,
+  WALLS,
+} from '@app/shared/demo-seed';
 import { asc, count } from 'drizzle-orm';
 import type { Logger } from 'pino';
 import sharp from 'sharp';
@@ -12,10 +28,7 @@ import { createLogger } from '../../../shared/logging/logger.js';
 import { parseAvatarKey } from '../../../shared/media/media-url.js';
 import { createDatabase, type DatabaseHandle } from '../../client.js';
 import { chatMessages, friendships, users, wallPosts } from '../../schema/index.js';
-import { AVATAR_COMPOSITIONS, AVATAR_PALETTE, pickAvatarDesign, renderAvatarSvg } from '../avatars.js';
-import { CHAT, FRIENDSHIPS, mulberry32, planTimeline, SEED_RANDOM_SEED, SEED_SPAN_DAYS, WALLS } from '../content.js';
 import { assertSeedAllowed, runSeed, type SeedOutcome } from '../index.js';
-import { DEMO_EMAIL, PEOPLE, type PersonHandle } from '../people.js';
 
 /**
  * The demo seed (F-115, B-63; DATA-MODEL.md Seed plan, ADR-0019 §7) in-process against this file's own clone of the

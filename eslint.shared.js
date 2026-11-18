@@ -44,6 +44,7 @@ function typescriptResolverOptions(tsconfigs) {
 
 export const ignores = globalIgnores([
   '**/dist/',
+  '**/dist-demo/',
   '**/coverage/',
   '**/playwright-report/',
   '**/test-results/',
@@ -93,6 +94,8 @@ export function featureBoundaries({ files, tsconfigs }) {
         { type: 'config', pattern: 'config' },
         { type: 'db', pattern: 'db' },
         { type: 'app', pattern: 'app' },
+        // apps/web/src/demo: the GitHub Pages demo's in-browser API (ADR-0020). Nothing in the app imports it.
+        { type: 'demo', pattern: 'demo' },
       ],
     },
     rules: {
@@ -114,6 +117,7 @@ export function featureBoundaries({ files, tsconfigs }) {
             },
             { from: { element: { type: 'shared' } }, allow: { to: { element: { types: ['shared', 'config'] } } } },
             { from: { element: { type: 'app' } }, allow: { to: { element: { types: ['app', 'shared'] } } } },
+            { from: { element: { type: 'demo' } }, allow: { to: { element: { types: ['demo', 'shared'] } } } },
           ],
         },
       ],

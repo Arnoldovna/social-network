@@ -846,7 +846,8 @@ Testing Library role queries), `@socket.io/redis-adapter` 8.3.0 (single instance
   [0016 test strategy and E2E data](adr/0016-test-strategy-and-e2e-data.md) ·
   [0017 delivery: Docker, CI, release](adr/0017-delivery-docker-ci-release.md) ·
   [0018 CI cost rule](adr/0018-ci-cost-rule.md) ·
-  [0019 consistency-pass alignment](adr/0019-consistency-pass-alignment.md)
+  [0019 consistency-pass alignment](adr/0019-consistency-pass-alignment.md) ·
+  [0020 GitHub Pages demo with msw](adr/0020-pages-demo-msw.md)
 
 ## 19. Threats and controls per module
 

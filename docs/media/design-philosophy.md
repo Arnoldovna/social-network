@@ -44,8 +44,8 @@ painstaking patience, the kind of quiet sheet a typographer would pin to the wal
 - **The cut:** paper on the left; a rose `#E59797` field (social-network's accent in the maw palette) from x 768 to
   the right edge and from the header rule (y 116) to the bottom edge.
 - **The table is the real seed:** 14 rows and 14 columns are the 14 fictional demo people in insertion order
-  (`apps/api/src/db/seed/people.ts`), so `01` is Mira Novak, the demo login. The marks are the friendship graph from
-  `apps/api/src/db/seed/content.ts`: ten accepted friendships drawn as solid squares in both cells (mirrored across
+  (`packages/shared/src/demo-seed/people.ts`), so `01` is Mira Novak, the demo login. The marks are the friendship graph from
+  `packages/shared/src/demo-seed/content.ts`: ten accepted friendships drawn as solid squares in both cells (mirrored across
   the diagonal), three open requests drawn as ruled half-tone squares in the requester's row only (Sofia and Yusuf to
   Mira, Mira to Clara). Row `01` shows Mira's five friends and her outgoing request; column `01` shows the two
   incoming requests that make the nav badge read 2.

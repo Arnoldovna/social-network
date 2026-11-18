@@ -13,7 +13,8 @@ if (!baseURL) {
 
 export default defineConfig({
   testDir: './e2e',
-  testIgnore: ['**/readme-media.spec.ts'], // README media has its own config (portfolio-readme skill)
+  // README media and the GitHub Pages demo smoke test have their own configs (playwright.media/demo.config.ts).
+  testIgnore: ['**/readme-media.spec.ts', '**/demo/**'],
   fullyParallel: true,
   forbidOnly: Boolean(process.env['CI']),
   retries: 0, // a flaky test is a failing test: fix the cause (quality-gate), never retry it green

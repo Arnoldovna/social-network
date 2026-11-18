@@ -86,6 +86,47 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup
       - run: pnpm build
+      # The GitHub Pages demo (ADR-0020) is built on every run, so it cannot rot while pages.yml is skipped (private
+      # repository); the check proves that dist has no msw or demo code and dist-demo is complete.
+      # `pnpm build` built packages/shared already, so only the web app's demo build runs here.
+      - run: pnpm --filter @app/web run build:demo
+      - run: pnpm check:demo-build
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: github.event_name == 'pull_request'
+        with:
+          name: demo-build
+          path: apps/web/dist-demo/
+          retention-days: 1
+
+  # CI cost rule (ADR-0018): pull requests only, like e2e. Playwright against `vite preview` of the demo the build job
+  # built (no second build), with axe.
+  demo:
+    name: demo smoke (built Pages demo + Playwright)
+    if: github.event_name == 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: demo-build
+          path: apps/web/dist-demo/
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:demo
+        env:
+          CI: 'true'
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: failure()
+        with:
+          name: demo-playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
 
   # CI cost rule (ADR-0018): pull requests only. The PR run is also the proof that both production images build and
   # that sharp, argon2 and socket.io load in the distroless runtime on linux/amd64.

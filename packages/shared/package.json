@@ -10,6 +10,11 @@
       "development": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./demo-seed": {
+      "development": "./src/demo-seed/index.ts",
+      "types": "./dist/demo-seed/index.d.ts",
+      "default": "./dist/demo-seed/index.js"
     }
   },
   "scripts": {

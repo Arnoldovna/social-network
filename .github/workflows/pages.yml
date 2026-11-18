@@ -1,0 +1,55 @@
+name: Pages
+
+# The live demo on GitHub Pages (Etappe 3b, ADR-0020): the real web app built with `pnpm build:demo`, its API mocked
+# in the browser by msw, data in IndexedDB. GitHub Pages is free only for public repositories, so both jobs run only
+# while the repository is public (CI cost rule, ADR-0018, like release.yml); while it is private they show as skipped.
+# One-time setup after going public: Settings -> Pages -> Source "GitHub Actions". ci.yml builds the demo on every run,
+# so it cannot rot while this workflow is skipped.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deployment at a time; a newer push waits instead of cancelling a deployment halfway.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: build demo
+    if: github.event.repository.private == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+      - run: pnpm build:demo
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: apps/web/dist-demo
+
+  deploy:
+    name: deploy demo
+    needs: build
+    if: github.event.repository.private == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

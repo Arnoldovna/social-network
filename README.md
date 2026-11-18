@@ -8,6 +8,11 @@ a React 19 app and an Express 5 + Socket.IO API.
 [![Release](https://github.com/Arnoldovna/social-network/actions/workflows/release.yml/badge.svg)](https://github.com/Arnoldovna/social-network/actions/workflows/release.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-black.svg)](LICENSE)
 
+**Live-Demo:** [arnoldovna.github.io/social-network](https://arnoldovna.github.io/social-network/) (goes live once the
+repository is public). It is the real frontend; the API, the chat and the presence run in your browser through Mock
+Service Worker, with the same demo people and a few simulated ones who come online and answer in the chat. Data stays
+in your browser (IndexedDB) and the banner resets it. Log in as `mira.novak@example.com` with `lets-chat-demo`.
+
 ![Friends page at 1440 px in light mode: two friend requests with accept and decline links above a list of five friends, each row with a flat-colour avatar, the name and the date the friendship started](docs/media/desktop-light.png)
 
 ![Screen recording: Mira logs in, opens the friends list, goes to Tomás's profile, writes a post on his wall, the post appears in the list, then she deletes it again through a confirmation dialog](docs/media/main-flow.gif)
@@ -119,6 +124,14 @@ pnpm demo            # creates .env with generated secrets, starts the stack, pr
 The demo runs on `http://127.0.0.1:8080`. If that port is taken, pick another one, for example
 `WEB_PORT=8090 pnpm demo`. `pnpm stack:down` stops the stack and keeps the data.
 
+Or without Docker, the GitHub Pages build with the API mocked in the browser
+([ADR-0020](docs/architecture/adr/0020-pages-demo-msw.md)):
+
+```bash
+pnpm build:demo
+pnpm --filter @app/web exec vite preview --mode demo   # http://localhost:4173/social-network/
+```
+
 Develop:
 
 ```bash
@@ -129,17 +142,18 @@ pnpm dev             # web on http://localhost:5173, API on http://localhost:300
 
 ## Scripts
 
-| Script                                                  | What it does                                                                                                     |
-| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `pnpm demo`                                             | production images with demo data, for a quick look                                                               |
-| `pnpm dev:setup`                                        | one-time local setup; running it again changes nothing                                                           |
-| `pnpm dev`                                              | web and API in watch mode                                                                                        |
-| `pnpm build`                                            | builds `packages/shared`, the API and the web app                                                                |
-| `pnpm verify`                                           | everything CI runs: format, lint, Stylelint, utility-class check, types, unit, integration, build, e2e, gitleaks |
-| `pnpm test` / `pnpm test:integration` / `pnpm test:e2e` | unit / API against real Postgres and Redis / browser tests with axe                                              |
-| `pnpm db:generate` / `pnpm db:migrate` / `pnpm db:seed` | new migration from the schema / apply migrations / demo data                                                     |
-| `pnpm stack:up` / `pnpm stack:down`                     | the production images on the local compose project                                                               |
-| `E2E_BASE_URL=<demo URL> pnpm media:readme`             | regenerates the README screenshots and the flow clip from the running demo                                       |
+| Script                                                  | What it does                                                                                                            |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `pnpm demo`                                             | production images with demo data, for a quick look                                                                      |
+| `pnpm dev:setup`                                        | one-time local setup; running it again changes nothing                                                                  |
+| `pnpm dev`                                              | web and API in watch mode                                                                                               |
+| `pnpm build`                                            | builds `packages/shared`, the API and the web app                                                                       |
+| `pnpm build:demo` / `pnpm test:demo`                    | the GitHub Pages demo (`apps/web/dist-demo`) / its Playwright smoke test against `vite preview`                         |
+| `pnpm verify`                                           | everything CI runs: format, lint, Stylelint, utility-class check, types, unit, integration, builds, demo, e2e, gitleaks |
+| `pnpm test` / `pnpm test:integration` / `pnpm test:e2e` | unit / API against real Postgres and Redis / browser tests with axe                                                     |
+| `pnpm db:generate` / `pnpm db:migrate` / `pnpm db:seed` | new migration from the schema / apply migrations / demo data                                                            |
+| `pnpm stack:up` / `pnpm stack:down`                     | the production images on the local compose project                                                                      |
+| `E2E_BASE_URL=<demo URL> pnpm media:readme`             | regenerates the README screenshots and the flow clip from the running demo                                              |
 
 ## Testing
 
@@ -160,7 +174,9 @@ all of them.
 
 [`ci.yml`](.github/workflows/ci.yml) runs lint (with a schema drift check), types, unit, integration, build, a
 `dev:setup` smoke test that runs the setup twice, and gitleaks over the full history on every pull request and on
-`main`; the e2e job runs on pull requests only. [`release.yml`](.github/workflows/release.yml) builds the web and API
+`main`; the build job also builds the Pages demo and checks that the production build contains no msw. The e2e job
+and the demo smoke test run on pull requests only. [`pages.yml`](.github/workflows/pages.yml) deploys the demo to
+GitHub Pages, only while the repository is public. [`release.yml`](.github/workflows/release.yml) builds the web and API
 images from commits that passed CI on `main` and pushes them to GHCR, but only while the repository is public. The
 deploy job is prepared under the same condition and stays off until the `DEPLOY_ENABLED` variable is set
 ([ADR-0018](docs/architecture/adr/0018-ci-cost-rule.md)). A weekly `pnpm audit` and Dependabot keep the dependencies
@@ -172,7 +188,7 @@ current.
   Authors, SIL Open Font License 1.1 (see [`LICENSES/OFL-SchibstedGrotesk.txt`](LICENSES/OFL-SchibstedGrotesk.txt)).
   Self-hosted via @fontsource.
 - Photos and images: none from third parties. The demo avatars are generated by the seed from flat colour fields
-  ([`apps/api/src/db/seed/avatars.ts`](apps/api/src/db/seed/avatars.ts)), and the demo people are fictional with
+  ([`packages/shared/src/demo-seed/avatar-design.ts`](packages/shared/src/demo-seed/avatar-design.ts)), and the demo people are fictional with
   `example.com` addresses.
 
 ## License

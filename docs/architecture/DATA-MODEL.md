@@ -364,9 +364,12 @@ E2E tests create their own users through the API (see ADR-0016), so they never d
 | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `seed/cli.ts`     | entry point: reads `process.env`, `assertSeedAllowed`, validates its keys with Zod (key names only on failure), opens the pool and S3 storage, calls `runSeed`, closes, exit code |
 | `seed/index.ts`   | `assertSeedAllowed(env)`, `runSeed(deps)`: "already seeded" check, one transaction, orchestration of the files below                                                              |
-| `seed/people.ts`  | the 14 people below (names, bios, which ones get an avatar)                                                                                                                       |
-| `seed/content.ts` | wall post and chat message texts, friendship graph                                                                                                                                |
-| `seed/avatars.ts` | generated abstract avatar: SVG string → `sharp` → 512×512 WebP → `storage.put('avatars/<id>/<uuid>.webp')`                                                                        |
+| `seed/avatars.ts` | rasterises a generated abstract avatar: SVG string → `sharp` → 512×512 WebP → `storage.put('avatars/<id>/<uuid>.webp')`                                                           |
+
+The data itself is pure and lives in `packages/shared/src/demo-seed` (`@app/shared/demo-seed`, ADR-0020), so the GitHub
+Pages demo shows the same people, posts, chat and avatars: `people.ts` (the 14 people below: names, bios, which ones
+get an avatar), `content.ts` (wall posts, chat messages, friendship graph, PRNG, timeline) and `avatar-design.ts`
+(palette, compositions, `pickAvatarDesign`, `renderAvatarSvg`).
 
 ### People (fictional; no real persons)
 
