@@ -14,6 +14,9 @@
     border: var(--rule-width) solid var(--color-ink);
     border-radius: 0;
 
+    /* A tall sheet scrolls itself (UA `overflow: auto`) and never hands the scroll on to the page behind it. */
+    overscroll-behavior: contain;
+
     &::backdrop {
       background-color: --alpha(var(--color-paper) / 92%);
     }

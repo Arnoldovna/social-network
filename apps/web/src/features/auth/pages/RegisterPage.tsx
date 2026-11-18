@@ -78,8 +78,8 @@ export function RegisterPage() {
       </AuthForm>
       <WelcomeLinks
         links={[
-          { lead: 'Already a member?', to: '/welcome/login', label: 'Log in' },
-          { to: '/welcome/about', label: 'About' },
+          { lead: 'Already a member?', to: '/welcome/login', label: 'log in' },
+          { to: '/welcome/about', label: 'about' },
         ]}
       />
     </div>

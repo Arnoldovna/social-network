@@ -3,24 +3,39 @@
 /*
  * BrandPanel: a flat rose field (maw-design-system §1, §4), black text and black 1px rules on it, never muted text or
  * `--color-rule`. The field sets the focus colour for anything focusable inside it (ADR-0015), so a ring stays black on
- * rose in dark mode too. The rows stack on narrow panels and turn into term-left / detail-right from the `row`
- * container width. Structural rules only; visual polish follows in Phase 4.
+ * rose in dark mode too.
+ *
+ * The rows are a key/value list (maw §5): term left, detail right at every width. Stacking them on phones made the
+ * panel about 540 px tall at 390 px and pushed the form below the fold (F-95, F-98); side by side it stays compact.
+ * The terms are single short words, so the narrow first column holds them down to 320 px. The lead is intro size
+ * (`text-lead`) on phones, a small title from 640 px and a list-row title once the panel is `row` wide.
  */
 @layer components {
   .brand-panel {
-    @apply flex flex-col gap-8 self-stretch ps-4 pe-4 pbs-6 pbe-4 bg-accent text-on-accent;
+    @apply flex flex-col gap-6 self-stretch ps-4 pe-4 pbs-5 pbe-3 bg-accent text-on-accent;
 
     --focus-color: var(--color-on-accent);
 
     container-type: inline-size;
 
     @variant sm {
-      @apply ps-6 pe-6 pbs-8 pbe-6;
+      @apply gap-8 ps-6 pe-6 pbs-8 pbe-5;
+    }
+
+    /* The global selection is rose, so on the field it would vanish: a 25% on-accent tint keeps black text visible. */
+    & ::selection {
+      @apply text-on-accent;
+
+      background-color: --alpha(var(--color-on-accent) / 25%);
     }
   }
 
   .brand-panel__lead {
-    @apply m-0 text-title-s font-regular max-inline-prose;
+    @apply m-0 text-lead font-regular max-inline-prose;
+
+    @variant sm {
+      @apply text-title-s;
+    }
 
     @variant @row {
       @apply text-title;
@@ -32,14 +47,13 @@
   }
 
   .brand-panel__row {
-    @apply flex flex-col gap-1 pbs-3 pbe-3;
+    @apply grid items-baseline gap-x-4 pbs-3 pbe-3;
 
+    grid-template-columns: minmax(0, 1fr) minmax(0, 3fr);
     border-block-start: var(--rule-width) solid var(--color-on-accent);
 
     @variant @row {
-      @apply grid items-baseline gap-x-6;
-
-      grid-template-columns: minmax(0, 1fr) minmax(0, 3fr);
+      @apply gap-x-6;
     }
   }
 

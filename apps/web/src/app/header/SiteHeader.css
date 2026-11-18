@@ -4,13 +4,25 @@
  * Site header (maw-design-system §6 "Site header", ADR-0015). It never fits one row (wordmark, search, avatar,
  * "log out" and four links need about 1,050 px), so:
  * - below 640 px: wordmark, avatar button and "menu" in one row; the panel (search, "log out", navigation) opens
- *   underneath as a column;
+ *   underneath as a column between two 1px rules;
  * - from 640 px: the panel dissolves into the header grid (`display: contents`): row 1 holds wordmark, avatar,
  *   search and "log out", row 2 the navigation above a 1px rule. The header is sticky, solid paper, and fades into
  *   the page below with `--header-fade` (the only gradient maw allows).
  * The grid areas follow the DOM order, so what is seen is also the focus order.
  */
 @layer components {
+  /*
+   * While the sticky header is on the page, scrolling to a focused element or a fragment keeps it clear of the header
+   * and its fade (WCAG 2.4.11 focus not obscured: Shift+Tab upwards would otherwise park focus under the header).
+   * The header measures 152 px from 640 px at every width up to 1,920 px (row 1 is set by the two-line search field,
+   * not the wordmark) plus the 24 px fade: 176 px = spacing 32 + 12.
+   */
+  :root:has(.site-header) {
+    @variant sm {
+      scroll-padding-block-start: calc(--spacing(32) + --spacing(12));
+    }
+  }
+
   .site-header {
     @apply grid items-center gap-x-4 gap-y-3 pbs-6 pbe-3 ps-3 pe-3 bg-paper;
 
@@ -70,12 +82,21 @@
   }
 
   .site-header__menu {
-    @apply flex items-center text-lead;
+    @apply flex items-center;
 
     grid-area: menu;
 
     @variant sm {
       @apply hidden;
+    }
+  }
+
+  /* "menu" at the size of the links it reveals (maw §6: nav links are `text-lead` on mobile). Open = 2px underline. */
+  .site-header__menu-button {
+    @apply text-lead;
+
+    &[aria-expanded='true'] {
+      text-decoration-thickness: var(--rule-width-strong);
     }
   }
 
@@ -91,7 +112,7 @@
   }
 
   .site-header__panel--open {
-    @apply flex flex-col gap-6 pbs-6 pbe-6 border-bs border-rule;
+    @apply flex flex-col gap-6 pbs-6 pbe-6 border-bs border-be border-rule;
 
     @variant sm {
       @apply contents;
@@ -107,11 +128,9 @@
   }
 
   .site-header__logout {
-    @apply flex items-center text-lead;
+    @apply flex items-center;
 
     @variant sm {
-      @apply text-body;
-
       grid-area: logout;
     }
   }

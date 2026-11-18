@@ -320,7 +320,7 @@ describe('ChatPage', () => {
     const { store } = createTestStore();
     await signInAs(store);
     const view = renderWithProviders(<ChatPage />, { store, path: '/chat', initialEntries: ['/chat'] });
-    return { ...view, field: screen.getByRole('textbox', { name: 'Message' }) };
+    return { ...view, field: screen.getByRole('textbox', { name: 'message' }) };
   }
 
   function serveHistory(pages: Record<string, ChatPageDto>) {
@@ -342,7 +342,7 @@ describe('ChatPage', () => {
 
     expect(await screen.findByText('No messages yet.')).toBeInTheDocument();
     expect(screen.getByText('Write the first one below.')).toBeInTheDocument();
-    expect(screen.getByRole('textbox', { name: 'Message' })).toBeEnabled();
+    expect(screen.getByRole('textbox', { name: 'message' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'send' })).toBeEnabled();
     expect(screen.getByRole('heading', { level: 1, name: 'Chat' })).toBeInTheDocument();
     expect(document.title).toBe("Chat · Let's chat!");
@@ -353,7 +353,7 @@ describe('ChatPage', () => {
     await renderPage();
 
     expect(screen.getByRole('status')).toHaveTextContent('loading messages…');
-    expect(screen.getByRole('textbox', { name: 'Message' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'message' })).toBeInTheDocument();
 
     const log = await screen.findByRole('log', { name: 'Chat messages' });
     expect(texts(log)).toEqual(HISTORY.map((entry) => entry.body));
@@ -536,7 +536,7 @@ describe('ChatPage', () => {
     const { user } = await renderPage();
 
     expect(await screen.findByRole('alert')).toHaveTextContent('The chat could not be loaded.');
-    expect(screen.getByRole('textbox', { name: 'Message' })).toBeInTheDocument();
+    expect(screen.getByRole('textbox', { name: 'message' })).toBeInTheDocument();
 
     fail = false;
     await user.click(screen.getByRole('button', { name: 'try again' }));

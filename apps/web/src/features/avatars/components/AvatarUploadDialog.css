@@ -2,8 +2,8 @@
 
 /*
  * AvatarUploadDialog: the form inside the shared maw modal (F-34, F-35). One column hanging from the left edge:
- * picture, file field (label above, hint and error below), progress, then the single accent action. The sheet is
- * narrowed to the prose container, because the content is one 128px picture and one field.
+ * picture, file field (outlined "choose an image" label, file name, hint and error), progress, then the single accent
+ * action. The sheet is narrowed to the prose container, because the content is one 128px picture and one field.
  */
 @layer components {
   .avatar-upload-dialog__sheet {
@@ -34,20 +34,49 @@
     @apply flex flex-col gap-2;
   }
 
-  .avatar-upload-dialog__label {
-    @apply text-meta text-ink-muted;
+  /*
+   * The native input is `.visually-hidden` (utilities.css) but keeps focus and every ARIA state; its label right after
+   * it is drawn as maw pattern B (outlined, no radius), so the browser's own file button and "no file chosen" text never
+   * show. Focus, hover, press and the disabled state of the input are mirrored on the label through the sibling
+   * combinator; press (`:active`) inverts like `.button--outlined`, the only feedback on touch (B-123, F-102).
+   */
+  .avatar-upload-dialog__choose {
+    @apply self-start pbs-2 pbe-2 ps-4 pe-4 text-body text-ink bg-paper cursor-pointer;
+
+    border: var(--rule-width) solid var(--color-ink);
+
+    @variant hover {
+      .avatar-upload-dialog__input:enabled + & {
+        @apply bg-ink text-paper;
+      }
+    }
+
+    .avatar-upload-dialog__input:enabled + &:active {
+      @apply bg-ink text-paper;
+    }
+
+    .avatar-upload-dialog__input:focus-visible + & {
+      outline: var(--focus-width) solid var(--focus-color, var(--color-ink));
+      outline-offset: var(--focus-offset);
+    }
+
+    .avatar-upload-dialog__input:disabled + & {
+      @apply text-ink-muted cursor-not-allowed;
+
+      border-color: var(--color-ink-muted);
+    }
+
+    @variant motion-safe {
+      transition-property: color, background-color, border-color;
+      transition-duration: var(--duration-fast);
+      transition-timing-function: var(--ease-standard);
+    }
   }
 
-  .avatar-upload-dialog__input {
-    @apply max-inline-full text-body text-ink font-sans;
+  .avatar-upload-dialog__file-name {
+    @apply m-0 text-meta text-ink;
 
-    /* The native "choose file" control as maw pattern B: outlined rectangle, no radius. */
-    &::file-selector-button {
-      @apply me-3 pbs-2 pbe-2 ps-4 pe-4 text-body font-sans text-ink bg-paper cursor-pointer;
-
-      border: var(--rule-width) solid var(--color-ink);
-      border-radius: 0;
-    }
+    overflow-wrap: anywhere;
   }
 
   .avatar-upload-dialog__hint {

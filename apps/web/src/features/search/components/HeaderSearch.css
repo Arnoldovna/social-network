@@ -7,7 +7,8 @@
  * on-accent text and a 2px underline on the name, so it is never marked by colour alone (maw §4).
  * Below 640 px the header shows the search in its menu panel, where the popup sits in the flow under the input; from
  * 640 px it overlays the page below the header row, aligned to the end of the search.
- * Structural rules for Phase 3; visual polish follows in Phase 4b.
+ * The input keeps its Phase 3 sizes from 640 px: the header's scroll padding is measured with this two-line field.
+ * Names are shown as stored (F-58, B-110); nothing here re-cases them.
  */
 @layer components {
   .header-search {
@@ -87,10 +88,30 @@
 
       border-block-end-color: var(--color-on-accent);
     }
+
+    /* The popup's ink border closes the list, so the last row needs no rule of its own (no double line). */
+    .header-search__item:last-child > & {
+      @apply border-be-0;
+    }
+
+    @variant motion-safe {
+      transition-property: background-color, color, border-color;
+      transition-duration: var(--duration-fast);
+      transition-timing-function: var(--ease-standard);
+    }
   }
 
+  /*
+   * On the active option the initials fallback (rose on rose) would lose its square, so the avatar gets a 1px
+   * on-accent frame drawn inside its box: no layout shift, black in both themes (maw §4: on-accent rules on accents).
+   */
   .header-search__avatar {
     @apply shrink-0;
+
+    .header-search__option[aria-selected='true'] & {
+      outline: var(--rule-width) solid var(--color-on-accent);
+      outline-offset: calc(var(--rule-width) * -1);
+    }
   }
 
   .header-search__name {

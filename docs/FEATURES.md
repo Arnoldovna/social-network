@@ -351,8 +351,8 @@ lastName, avatarUrl`). `[api]`
 - **F-95** The welcome area has a two-column layout on large screens (brand
   panel + form) and a single column on small screens. `[e2e]`
 - **F-96** Login, registration and about are reachable from each other via
-  visible links ("Already a member? Log in", "Not a member yet? Sign up",
-  "About"). `[e2e]`
+  visible links ("Already a member? log in", "Not a member yet? sign up",
+  "about"; link labels lowercase as in maw-design-system §10). `[e2e]`
 - **F-97** The about page describes the project and lists the technologies as
   plain text or real external links (legacy used dead `href="#"` links).
   `[e2e]`

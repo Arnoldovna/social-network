@@ -113,9 +113,9 @@ function trigger(): HTMLElement {
 }
 
 function fileInput(): HTMLInputElement {
-  const input = screen.getByLabelText('image');
+  const input = screen.getByLabelText('choose an image');
   if (!(input instanceof HTMLInputElement)) {
-    throw new Error('the "image" label does not point at an input');
+    throw new Error('the "choose an image" label does not point at an input');
   }
   return input;
 }
@@ -192,6 +192,7 @@ describe('AvatarUploadDialog (F-34, F-35, F-38; B-96, B-97)', () => {
     expect(fileInput()).toHaveAccessibleDescription('JPEG, PNG, WebP or GIF, up to 2 MB. It is cropped to a square.');
     expect(within(dialog).getByRole('img', { name: "Mira Novak's profile picture" })).toBeInTheDocument();
     // Nothing to upload yet (B-33).
+    expect(within(dialog).getByText('no image chosen')).toBeInTheDocument();
     expect(saveButton()).toBeDisabled();
   });
 
@@ -238,6 +239,7 @@ describe('AvatarUploadDialog (F-34, F-35, F-38; B-96, B-97)', () => {
     await user.upload(fileInput(), imageFile());
 
     expect(preview().getAttribute('src')).toMatch(/^blob:/);
+    expect(screen.getByText('holiday-2026.png')).toBeInTheDocument();
     expect(saveButton()).toBeEnabled();
     expect(fileInput()).not.toHaveAttribute('aria-invalid');
   });
@@ -249,6 +251,9 @@ describe('AvatarUploadDialog (F-34, F-35, F-38; B-96, B-97)', () => {
     await user.upload(fileInput(), imageFile('cv.pdf', 'application/pdf'));
 
     expect(within(dialog).getByRole('alert')).toHaveTextContent(MESSAGES.type);
+    // The refused file is still the one chosen: its name stays next to the message, never "no image chosen".
+    expect(within(dialog).getByText('cv.pdf')).toBeInTheDocument();
+    expect(within(dialog).queryByText('no image chosen')).not.toBeInTheDocument();
     expect(fileInput()).toHaveAttribute('aria-invalid', 'true');
     expect(fileInput()).toHaveAccessibleDescription(expect.stringContaining(MESSAGES.type) as string);
     expect(saveButton()).toBeDisabled();
@@ -263,6 +268,7 @@ describe('AvatarUploadDialog (F-34, F-35, F-38; B-96, B-97)', () => {
     await user.upload(fileInput(), imageFile('scan.png', 'image/png', AVATAR_MAX_BYTES + 1));
 
     expect(within(dialog).getByRole('alert')).toHaveTextContent(MESSAGES.size);
+    expect(within(dialog).getByText('scan.png')).toBeInTheDocument();
     expect(saveButton()).toBeDisabled();
   });
 

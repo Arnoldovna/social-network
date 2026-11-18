@@ -370,9 +370,9 @@ Owner: css-architect agents, then design-critic. Only `.css` files and, where a 
 here (and the `className` attributes in `shared/ui/*.tsx` and `app/**/*.tsx`). When 4a is done, its output is
 frozen for 4b.
 
-| Unit                       | Files                                                                                                                      | FEATURES                            | BUGS                                     |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- | ---------------------------------------- |
-| **foundation + app shell** | `styles/base.css`, `styles/utilities.css` (tokens.css stays verbatim except the accent), `shared/ui/*.css`, `app/**/*.css` | F-93, F-94, F-98, F-99, F-102–F-104 | B-106, B-109, B-113–B-131 (global rules) |
+| Unit                       | Files                                                                                                                                                           | FEATURES                            | BUGS                                     |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- | ---------------------------------------- |
+| **foundation + app shell** | `styles/base.css`, `styles/utilities.css` (tokens.css stays verbatim except the accent and `--log-max-block-size`, ADR-0015), `shared/ui/*.css`, `app/**/*.css` | F-93, F-94, F-98, F-99, F-102–F-104 | B-106, B-109, B-113–B-131 (global rules) |
 
 Carried over from Gate 3 into 4a:
 
@@ -381,7 +381,9 @@ Carried over from Gate 3 into 4a:
   avatar "save" keep focus via `aria-disabled` while busy).
 - Chat log height: `ChatLog.css` caps the log at `var(--container-prose)`; at 390×844 the composer can fall below
   the fold. 4a decides between a viewport-aware rule in `base.css`/`utilities.css` and a token (tokens.css changes
-  beyond the accent need a docs change first).
+  beyond the accent need a docs change first). **Decided: a token** (ADR-0015): `--log-max-block-size` in
+  tokens.css section 7, used by `.chat-log__scroller`; tokens.css may now differ from the template in the accent and
+  this one token.
 
 **4b – feature CSS (parallel, after 4a).** Each unit `@reference`s the frozen `main.css` and styles only its own
 features.
@@ -393,13 +395,25 @@ features.
 | **wall + chat**                 | `features/{wall,chat}/**/*.css`               | F-69, F-77, F-81, F-98 | B-114, B-131               |
 
 **4c – design review (serial).** The orchestrator starts the seeded demo stack with `pnpm demo`
-(http://127.0.0.1:8080, production images and limits; never the e2e stack) and stops it with `pnpm stack:down`
+(http://127.0.0.1:8080, production images and limits; never the e2e stack; when host port 8080 is taken, run it as
+`WEB_PORT=<free port> pnpm demo`, which the CORS allow-list follows) and stops it with `pnpm stack:down`
 afterwards; the reviewer logs in as the demo user printed by `pnpm demo` (`SEED_DEMO_PASSWORD` from `.env`) and
 never runs compose itself. `maw-design-system/references/review-rubric.md` on screenshots at 390×844,
 768×1024, 1440×900, dark 1440, one hover and one focus state; anti-AI checklist clean, no criterion 0, total ≥ 24/30.
 `design-taste-frontend` only as a check lens (copy lint, overflow at 1440/1280/1024/768/640/390/320, tap sizes).
 The header must not overflow at 640, 768 and 1024 px (ADR-0015). Fixes in the same phase; the orchestrator
 applies fixes to 4a files serially.
+
+Review fixes that cannot be CSS alone go beyond the "only `.css` and `className`" rule above. The orchestrator
+applies them serially, with the tests and FEATURES updated in the same change, and lists them here:
+
+- copy: link labels lowercase per maw §10 ("sign up", "log in", "about", F-96) and the chat field label "message";
+- `AvatarUploadDialog`: the native file input is visually hidden behind an outlined "choose an image" label plus a
+  lowercase file-name line, so the browser's own "Choose file / No file chosen" text never shows;
+- `shared/ui/EmptyState`: a `size="section"` prop for empty states under a section label (`FriendSection`, `Wall`);
+- `shared/ui/UserRow`, `app/header/SiteHeader`: BEM element classes only;
+- `e2e/a11y.ts` (frozen since Phase 1): axe waits for finite CSS transitions and animations to finish, so it never
+  measures the in-between colours of a 120 ms transition.
 
 **Gate 4** (branch `feat/css-design`).
 

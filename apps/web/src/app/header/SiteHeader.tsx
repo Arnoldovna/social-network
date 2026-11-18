@@ -54,7 +54,13 @@ export function SiteHeader() {
         <AvatarButton variant="header" />
       </div>
       <div className="site-header__menu">
-        <Button ref={menuButtonRef} aria-expanded={menuOpen} aria-controls={panelId} onClick={toggleMenu}>
+        <Button
+          ref={menuButtonRef}
+          className="site-header__menu-button"
+          aria-expanded={menuOpen}
+          aria-controls={panelId}
+          onClick={toggleMenu}
+        >
           menu
         </Button>
       </div>

@@ -169,10 +169,10 @@ describe('LoginPage', () => {
     const { user, router } = renderLoginPage();
 
     const signUpItem = screen.getByText(/Not a member yet\?/);
-    expect(within(signUpItem).getByRole('link', { name: 'Sign up' })).toHaveAttribute('href', '/welcome');
-    expect(screen.getByRole('link', { name: 'About' })).toHaveAttribute('href', '/welcome/about');
+    expect(within(signUpItem).getByRole('link', { name: 'sign up' })).toHaveAttribute('href', '/welcome');
+    expect(screen.getByRole('link', { name: 'about' })).toHaveAttribute('href', '/welcome/about');
 
-    await user.click(screen.getByRole('link', { name: 'About' }));
+    await user.click(screen.getByRole('link', { name: 'about' }));
 
     expect(await screen.findByRole('heading', { level: 1, name: 'About' })).toBeInTheDocument();
     expect(router.state.location.pathname).toBe('/welcome/about');

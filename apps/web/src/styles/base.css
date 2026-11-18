@@ -11,8 +11,11 @@
     text-size-adjust: 100%;
   }
 
+  /* A long unbroken word (a URL in a post, a long name) wraps instead of widening the page (F-98, B-126). */
   body {
     @apply m-0 min-block-dvh;
+
+    overflow-wrap: break-word;
   }
 
   h1,
@@ -29,10 +32,21 @@
     text-wrap: pretty;
   }
 
+  /*
+   * Links are underlined by default (maw button A: 1px, 2px on hover), so a link in running text is never told apart by
+   * colour alone (WCAG 1.4.1). Preflight resets `text-decoration` to `inherit`; this restores the line. Links that are
+   * navigation or names (wordmark, main nav, user rows) opt out with `no-underline` in their own block.
+   */
   a {
+    @apply underline;
+
     color: inherit;
     text-decoration-thickness: var(--rule-width);
     text-underline-offset: var(--underline-offset);
+
+    @variant hover {
+      text-decoration-thickness: var(--rule-width-strong);
+    }
   }
 
   img,

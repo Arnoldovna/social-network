@@ -51,13 +51,11 @@
     @apply m-0 mbe-4 text-body text-ink-muted max-inline-prose;
   }
 
+  /*
+   * Underlined text link (maw button A); line and hover thickness come from the `a` defaults in base.css. At least
+   * 24px tall like the buttons, so the only action on the page is an easy target (WCAG 2.5.8).
+   */
   .not-found-page__link {
-    @apply text-body text-ink;
-
-    text-decoration-thickness: var(--rule-width);
-
-    @variant hover {
-      text-decoration-thickness: var(--rule-width-strong);
-    }
+    @apply inline-flex items-center min-block-6 text-body text-ink;
   }
 }

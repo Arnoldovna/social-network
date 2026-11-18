@@ -3,7 +3,7 @@
 /*
  * Bio editor (F-26–F-32): the bio as running text (line breaks kept, F-32), the empty sentence in muted ink, one text
  * button; in edit mode the shared TextArea and the "save" / "cancel" pair. The status line is a polite live region
- * that stays in the DOM, so its sentence is announced when it appears. Structural rules only; Phase 4 polishes.
+ * that stays in the DOM, so its sentence is announced when it appears.
  */
 @layer components {
   /* Margins instead of a gap, so the empty status line takes no space while it stays in the accessibility tree. */

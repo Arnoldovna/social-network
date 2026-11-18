@@ -3,33 +3,82 @@
 /*
  * ChatMessageItem: a maw list row (ADR-0015). Avatar left, then the meta line (author name in medium weight, the time
  * in tracked meta) and the message text below; a 1px rule under each row. Tight inside the row, the rule separates.
- * The viewer's own messages carry a 2px rose marker on the inline-start side; it is decorative, the author name says
- * the same in ink (maw-design-system §4). A failed message adds the 2px error rule in front of its ink sentence.
+ * The viewer's own messages are the maw `list-row--field` variant: a flat rose field (maw-design-system §1, §6). A failed
+ * message adds the 2px error rule in front of its ink sentence.
+ *
+ * Like every maw row, the rule turns ink while the row is hovered or holds focus (author link, "retry", "discard").
+ * No fade-in: a pending row is replaced by the confirmed one under a new key on ack (F-79), and fading that
+ * replacement in would make the message blink.
  */
 @layer components {
   .chat-message {
-    @apply flex items-start gap-3 m-0 pbs-4 pbe-3 ps-0 pe-0 border-be border-rule;
+    @apply flex items-start gap-3 m-0 pbs-4 pbe-3 ps-0 pe-0 border-be border-be-rule;
 
     list-style: none;
+
+    &:hover,
+    &:focus-within {
+      @apply border-be-rule-strong;
+    }
+
+    @variant motion-safe {
+      transition-property: border-color;
+      transition-duration: var(--duration-fast);
+      transition-timing-function: var(--ease-standard);
+    }
   }
 
+  /*
+   * Own message: a flat accent field. Inside an accent field every text, rule and the focus ring switch to on-accent
+   * (§4: no ink-muted, no rule colour, no error colour and no white on rose; on-accent never swaps, so this holds in
+   * dark mode too). The field re-points the colour tokens for its subtree instead of restyling each element, so shared
+   * pieces inside it follow without knowing about it: the text buttons "retry"/"discard" inherit on-accent, an outlined
+   * button would invert to black with rose text, and the muted "sending…" status reads in black (the word itself says
+   * the state). Paper becomes the field colour for the same reason. The global ring uses `--focus-color` (base.css).
+   */
   .chat-message--own {
-    @apply ps-3;
+    @apply ps-3 pe-3 bg-accent text-on-accent;
 
-    border-inline-start: var(--rule-width-strong) solid var(--color-accent);
+    --color-paper: var(--color-accent);
+    --color-ink: var(--color-on-accent);
+    --color-ink-muted: var(--color-on-accent);
+    --color-rule: var(--color-on-accent);
+    --color-rule-strong: var(--color-on-accent);
+    --color-error: var(--color-on-accent);
+    --focus-color: var(--color-on-accent);
+
+    /*
+     * The global selection is the rose field itself, so selected text would vanish on this row. A 25% on-accent tint
+     * over the rose keeps the text black and the selection visible in both themes (on-accent and rose never swap).
+     */
+    &::selection,
+    & ::selection {
+      @apply text-on-accent;
+
+      background-color: --alpha(var(--color-on-accent) / 25%);
+    }
   }
 
   /* Failed: the row's rule turns ink as well, so the row reads as needing attention without colour (§4). */
   .chat-message--failed {
-    @apply border-rule-strong;
+    @apply border-be-rule-strong;
   }
 
   .chat-message--sending {
     @apply text-ink-muted;
   }
 
+  /*
+   * On the own field the initials fallback (rose on rose) would lose its square, so the avatar gets a 1px on-accent
+   * frame drawn inside its box, as on the active search option: no layout shift, black in both themes (maw §4).
+   */
   .chat-message__avatar {
     @apply shrink-0;
+
+    .chat-message--own & {
+      outline: var(--rule-width) solid var(--color-on-accent);
+      outline-offset: calc(var(--rule-width) * -1);
+    }
   }
 
   .chat-message__content {
@@ -40,13 +89,19 @@
     @apply flex flex-wrap items-baseline gap-x-3 gap-y-1 m-0;
   }
 
+  /* At least 24px high like `.button` (WCAG 2.5.8): the body line alone is 23px. */
   .chat-message__author {
-    @apply text-body font-medium text-ink no-underline;
+    @apply min-block-6 text-body font-medium text-ink no-underline;
 
     overflow-wrap: anywhere;
 
+    /* A flex item of the meta line, so it is blockified and the shake's `translate` applies. */
     @variant hover {
       @apply underline;
+
+      @variant motion-safe {
+        @apply animate-shake;
+      }
     }
   }
 

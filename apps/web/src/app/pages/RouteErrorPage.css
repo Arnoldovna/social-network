@@ -47,13 +47,8 @@
     @apply m-0 text-title-l font-regular;
   }
 
+  /* Underlined text link (maw button A); line and hover thickness come from the `a` defaults in base.css. */
   .route-error-page__link {
     @apply text-body text-ink;
-
-    text-decoration-thickness: var(--rule-width);
-
-    @variant hover {
-      text-decoration-thickness: var(--rule-width-strong);
-    }
   }
 }

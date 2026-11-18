@@ -3,7 +3,7 @@
 /*
  * RegisterPage: left-aligned and editorial (maw-design-system §1): a large title, one line of intro close below it,
  * the form after a wider gap, and the links to log in and about at the end above a 1px rule. The rhythm varies on
- * purpose (tight title/intro, generous before form and links). Structural rules only; polish follows in Phase 4.
+ * purpose (tight title/intro, generous before form and links).
  */
 @layer components {
   .register-page {

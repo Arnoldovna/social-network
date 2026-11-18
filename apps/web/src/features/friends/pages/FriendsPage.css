@@ -1,16 +1,13 @@
 @reference "#styles/main.css";
 
 /*
- * FriendsPage: the page title, then the three sections stacked in one left-aligned column with generous space between
- * them (maw-design-system §3: tight inside a row, generous between sections).
+ * FriendsPage: the page title, then the three sections stacked in one left-aligned column (F-54). The page shell
+ * (AppLayout) owns the space around the page, so the title sits at the same height as on /online and /chat; the
+ * rhythm inside is tight from title to the first label and generous between sections (maw-design-system §3).
  */
 @layer components {
   .friends-page {
-    @apply flex flex-col gap-10 pbs-8 pbe-24;
-
-    @variant sm {
-      @apply pbs-12;
-    }
+    @apply flex flex-col gap-8;
   }
 
   .friends-page__title {

@@ -27,7 +27,7 @@ function DraftOwner({ onSend }: { onSend: (body: string) => Promise<unknown> }) 
 function setup(onSend: (body: string) => Promise<unknown> = vi.fn(() => Promise.resolve())) {
   const user = userEvent.setup();
   const result = render(<DraftOwner onSend={onSend} />);
-  const field = screen.getByRole('textbox', { name: 'Message' });
+  const field = screen.getByRole('textbox', { name: 'message' });
   const sendButton = screen.getByRole('button', { name: 'send' });
   return { ...result, user, field, sendButton, onSend };
 }
@@ -141,10 +141,10 @@ describe('ChatComposer', () => {
 
     rerender(<ChatComposer draft="Half a thought" onDraftChange={onDraftChange} onSend={onSend} />);
     rerender(<ChatComposer draft="Half a thought" onDraftChange={onDraftChange} onSend={onSend} />);
-    expect(screen.getByRole('textbox', { name: 'Message' })).toHaveValue('Half a thought');
+    expect(screen.getByRole('textbox', { name: 'message' })).toHaveValue('Half a thought');
     expect(onDraftChange).not.toHaveBeenCalled();
 
-    await user.type(screen.getByRole('textbox', { name: 'Message' }), '!');
+    await user.type(screen.getByRole('textbox', { name: 'message' }), '!');
     expect(onDraftChange).toHaveBeenCalledExactlyOnceWith('Half a thought!');
   });
 

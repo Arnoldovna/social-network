@@ -3,8 +3,7 @@
 /*
  * AboutPage: title, two paragraphs of running text at prose width, a section label ("built with": lowercase caption
  * with a muted 1px rule, maw-design-system §6) and the stack as list rows: name left, role right from the `row`
- * container width, stacked with a 1px ink rule between them on narrow columns (§1 rule 3). Structural rules only;
- * visual polish follows in Phase 4.
+ * container width, stacked with a 1px ink rule between them on narrow columns (§1 rule 3).
  */
 @layer components {
   .about-page {

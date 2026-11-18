@@ -2,8 +2,12 @@
 
 /*
  * TextField: label above (meta, muted), underline-only input, hint below (maw-design-system §7).
- * The underline is ink-muted (6.29:1, a UI boundary per WCAG 1.4.11), 2px ink on focus, 2px error when invalid.
+ * The underline is ink-muted (6.29:1, a UI boundary per WCAG 1.4.11), ink on hover, 2px ink on focus, 2px error when
+ * invalid (an invalid field keeps its error line on hover).
  * The thicker line takes its extra pixel from the padding, so focus never shifts the layout.
+ * While the field is invalid, the hint steps back and the error alone says what to do, so the same advice is never
+ * shown twice ("At least 12 characters." above "Use at least 12 characters."). The hint stays in the DOM and in
+ * `aria-describedby`, read after the error, so assistive technology loses nothing.
  */
 @layer components {
   .text-field {
@@ -21,6 +25,12 @@
     border: 0;
     border-block-end: var(--rule-width) solid var(--color-ink-muted);
     border-radius: 0;
+
+    @variant hover {
+      &:enabled:not([aria-invalid='true']) {
+        border-block-end-color: var(--color-ink);
+      }
+    }
 
     &[aria-invalid='true'] {
       padding-block-end: calc(--spacing(2) - var(--rule-width));
@@ -40,5 +50,9 @@
 
   .text-field__hint {
     @apply m-0 text-meta text-ink-muted;
+
+    .text-field__input[aria-invalid='true'] ~ & {
+      @apply hidden;
+    }
   }
 }

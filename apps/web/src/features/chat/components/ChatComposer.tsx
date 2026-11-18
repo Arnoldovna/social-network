@@ -86,7 +86,7 @@ export function ChatComposer({ draft, onDraftChange, onSend }: ChatComposerProps
       <div className="chat-composer__row">
         <TextArea
           className="chat-composer__field"
-          label="Message"
+          label="message"
           name="body"
           rows={2}
           autoComplete="off"

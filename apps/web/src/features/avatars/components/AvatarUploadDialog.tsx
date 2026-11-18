@@ -71,6 +71,11 @@ function AvatarUploadForm({ fileInputRef, onUploaded, user }: AvatarUploadFormPr
   const progressLabelId = useId();
 
   const [selection, setSelection] = useState<Selection | null>(null);
+  /**
+   * Name of the file in the input, valid or not. `selection` holds only an uploadable file, so a refused one ("cv.pdf",
+   * too large) would otherwise read "no image chosen" next to its own error message.
+   */
+  const [chosenFileName, setChosenFileName] = useState<string | null>(null);
   /** Why the chosen file cannot be uploaded (browser-side checks); `null` while it may be. */
   const [fileProblem, setFileProblem] = useState<string | null>(null);
   /** Share of the body sent, `0`–`1`, while an upload runs; `null` otherwise. */
@@ -103,6 +108,7 @@ function AvatarUploadForm({ fileInputRef, onUploaded, user }: AvatarUploadFormPr
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.currentTarget.files?.[0] ?? null;
     resetUpload();
+    setChosenFileName(file?.name ?? null);
     if (file === null) {
       setSelection(null);
       setFileProblem(null);
@@ -180,13 +186,13 @@ function AvatarUploadForm({ fileInputRef, onUploaded, user }: AvatarUploadFormPr
       </div>
 
       <div className="avatar-upload-dialog__field">
-        <label className="avatar-upload-dialog__label" htmlFor={inputId}>
-          image
-        </label>
+        {/* The native input stays in the tab order and carries every ARIA state; it is only hidden visually. Its label
+            comes right after it and is drawn as the outlined button (maw components §7), so the browser's own
+            "choose file / no file chosen" text never shows. */}
         <input
           ref={fileInputRef}
           id={inputId}
-          className="avatar-upload-dialog__input"
+          className="visually-hidden avatar-upload-dialog__input"
           type="file"
           name="avatar"
           accept={AVATAR_ACCEPT}
@@ -195,6 +201,10 @@ function AvatarUploadForm({ fileInputRef, onUploaded, user }: AvatarUploadFormPr
           aria-describedby={tokenList(hintId, errorText !== null && errorId)}
           onChange={handleFileChange}
         />
+        <label className="avatar-upload-dialog__choose" htmlFor={inputId}>
+          choose an image
+        </label>
+        <p className="avatar-upload-dialog__file-name">{chosenFileName ?? 'no image chosen'}</p>
         <p id={hintId} className="avatar-upload-dialog__hint">
           {AVATAR_FILE_HINT}
         </p>

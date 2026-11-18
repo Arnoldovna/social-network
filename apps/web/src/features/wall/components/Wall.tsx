@@ -165,7 +165,8 @@ function WallPosts({ ownerId, ownerFirstName, canPost, headingRef }: WallPostsPr
       <LoadingState label="loading posts…" />
     );
   } else if (posts.length === 0) {
-    content = <EmptyState title="No posts yet." text={canPost ? 'Write the first one.' : undefined} />;
+    // Under the "wall" section label, below the profile name: the compact size, so it never competes with the title.
+    content = <EmptyState size="section" title="No posts yet." text={canPost ? 'Write the first one.' : undefined} />;
   } else {
     content = (
       <WallPostList

@@ -1,11 +1,16 @@
 @reference "#styles/main.css";
 
 /*
- * ChatLog: the history as one left-aligned column of message rows inside its own scroll container, capped at the
- * prose height token so the composer below stays in reach. No box around it: the 1px ink-muted rule on top and the
- * rows' own rules carry the structure (maw-design-system §1). `overflow-anchor: none` because use-stick-to-bottom
- * keeps the reading position itself when older messages are added on top; the browser's anchoring would add the same
- * offset twice. The "new messages" pill sits over the bottom edge of the log (no layout shift), paper on ink border.
+ * ChatLog: the history as one left-aligned column of message rows inside its own scroll container, capped by the
+ * viewport-aware `--log-max-block-size` token (ADR-0015) so the composer below stays on the first screen. No box
+ * around it: the 1px ink-muted rule on top and the rows' own rules carry the structure (maw-design-system §1).
+ * `overflow-anchor: none` because use-stick-to-bottom keeps the reading position itself when older messages are added
+ * on top; the browser's anchoring would add the same offset twice. `overflow-y: auto` shows a scrollbar only once the
+ * history overflows (B-131), and the stable gutter keeps the rows from shifting sideways when it appears.
+ *
+ * The "new messages" pill (F-81) is an outlined button laid over the bottom edge of the log rather than pushed into
+ * the flow, so it never moves the rows the reader is looking at; it is positioned against the log block, not the page
+ * (B-114). It fades in under motion-safe.
  */
 @layer components {
   .chat-log {
@@ -23,9 +28,10 @@
   .chat-log__scroller {
     @apply overflow-y-auto pbe-2 border-bs border-ink-muted;
 
-    max-block-size: var(--container-prose);
+    max-block-size: var(--log-max-block-size);
     overflow-anchor: none;
     overscroll-behavior: contain;
+    scrollbar-gutter: stable;
   }
 
   .chat-log__list {
@@ -40,5 +46,9 @@
     inset-block-end: --spacing(3);
     inset-inline-start: 0;
     z-index: var(--layer-preview);
+
+    @variant motion-safe {
+      @apply animate-fade-in;
+    }
   }
 }

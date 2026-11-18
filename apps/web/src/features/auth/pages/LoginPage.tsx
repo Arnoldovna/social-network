@@ -73,8 +73,8 @@ export function LoginPage() {
       </AuthForm>
       <WelcomeLinks
         links={[
-          { lead: 'Not a member yet?', to: '/welcome', label: 'Sign up' },
-          { to: '/welcome/about', label: 'About' },
+          { lead: 'Not a member yet?', to: '/welcome', label: 'sign up' },
+          { to: '/welcome/about', label: 'about' },
         ]}
       />
     </div>

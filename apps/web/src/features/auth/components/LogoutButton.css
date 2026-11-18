@@ -2,7 +2,7 @@
 
 /*
  * LogoutButton: a text button (pattern A) in the header; a failed logout's message wraps below it at prose width, so
- * it never pushes the header row wider than the viewport. Structural rules only; visual polish follows in Phase 4.
+ * it never pushes the header row wider than the viewport.
  */
 @layer components {
   .logout-button {

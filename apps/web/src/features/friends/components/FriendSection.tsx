@@ -86,7 +86,7 @@ export function FriendSection({
         {entries.length === 0 ? null : <p className="friend-section__count">{countLabel(entries.length)}</p>}
       </div>
       {entries.length === 0 ? (
-        <EmptyState title={emptyTitle} text={emptyText} />
+        <EmptyState size="section" title={emptyTitle} text={emptyText} />
       ) : (
         <ul className="friend-section__list">
           {entries.map(({ user, since }) => {

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { tokenList } from '../lib/token-list';
 
 import './EmptyState.css';
 
@@ -9,6 +10,11 @@ export interface EmptyStateProps {
   text?: ReactNode;
   /** At most one text button or link. */
   action?: ReactNode;
+  /**
+   * `page` (default) stands in for a whole page list and grows to `text-title-l`; `section` sits under a section
+   * label (e.g. one of the three `/friends` lists) and stays at `text-title-s`, below the page title.
+   */
+  size?: 'page' | 'section';
 }
 
 /**
@@ -16,11 +22,11 @@ export interface EmptyStateProps {
  * centred card (maw-design-system §6). The title is a paragraph, not a heading, so it never breaks the heading
  * order of the page or section it sits in (F-103).
  */
-export function EmptyState({ title, text, action }: EmptyStateProps) {
+export function EmptyState({ title, text, action, size = 'page' }: EmptyStateProps) {
   const hasText = text !== undefined && text !== null && text !== '';
 
   return (
-    <div className="empty-state">
+    <div className={tokenList('empty-state', size === 'section' && 'empty-state--section')}>
       <p className="empty-state__title">{title}</p>
       {hasText ? <p className="empty-state__text">{text}</p> : null}
       {action ?? null}

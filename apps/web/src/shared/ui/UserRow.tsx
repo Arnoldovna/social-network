@@ -29,7 +29,7 @@ export function UserRow({ user, meta, actions, as: Element = 'li' }: UserRowProp
   return (
     <Element className="user-row">
       <div className="user-row__body">
-        <Avatar firstName={user.firstName} lastName={user.lastName} src={user.avatarUrl} />
+        <Avatar className="user-row__avatar" firstName={user.firstName} lastName={user.lastName} src={user.avatarUrl} />
         <div className="user-row__text">
           <Link className="user-row__name" to={profilePath(user.id)}>
             {name}

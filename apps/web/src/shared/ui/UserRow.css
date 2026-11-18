@@ -1,9 +1,15 @@
 @reference "#styles/main.css";
 
 /*
- * UserRow: the maw list row for a person. The block is the size container; its body queries it (an element never
- * matches its own container). Narrow: avatar and name on one line, actions wrap below. From the `row` container
- * width (36rem) on, the actions move to the end of the line and the name grows to title-s.
+ * UserRow: the maw list row for a person (maw-design-system §1 rule 3, §6 "List row"). The block is the size container;
+ * its elements query it (an element never matches its own container).
+ *
+ * Narrow: avatar and name on one line, the meta stacked under the name behind a 1px ink rule, actions wrap below.
+ * From the `row` container width (36rem) on, the body is one grid line: avatar | name | meta | actions. The text
+ * wrapper steps aside (`display: contents`), so name and meta become grid items, and the meta sits in a fixed column
+ * whose start lines up across the rows of a list, like the meta column of the portfolio list. The actions column has a
+ * floor of a fifth of the row, so rows with "accept decline" and rows with "unfriend" keep the same meta column; when a
+ * set of actions is wider, its column grows instead of wrapping. Name and meta share a baseline; the avatar is centred.
  */
 @layer components {
   .user-row {
@@ -22,16 +28,28 @@
     }
 
     @variant @row {
-      @apply flex-nowrap gap-x-6 pbs-5;
+      @apply grid items-baseline gap-x-6 gap-y-0 pbs-5;
+
+      grid-template-columns: auto minmax(0, 1fr) minmax(0, 30%) minmax(max-content, 20%);
+    }
+  }
+
+  .user-row__avatar {
+    @variant @row {
+      @apply self-center;
     }
   }
 
   .user-row__text {
-    @apply flex min-inline-0 flex-1 flex-col gap-1;
+    @apply flex min-inline-0 flex-1 flex-col gap-2;
+
+    @variant @row {
+      display: contents;
+    }
   }
 
   .user-row__name {
-    @apply self-start text-lead font-medium text-ink no-underline;
+    @apply self-start text-title-s font-regular text-ink no-underline;
 
     overflow-wrap: anywhere;
 
@@ -44,22 +62,30 @@
     }
 
     @variant @row {
-      @apply text-title-s;
+      @apply self-baseline justify-self-start text-title;
     }
   }
 
+  /* Stacked: title, then a 1px ink rule, then the meta (§6). Beside the title the rule goes away. */
   .user-row__meta {
-    @apply m-0 text-meta text-ink-muted;
+    @apply m-0 pbs-2 text-meta text-ink-muted border-bs border-rule-strong;
 
     font-variant-numeric: tabular-nums;
+
+    @variant @row {
+      @apply pbs-0 border-0;
+
+      grid-column: 3;
+    }
   }
 
   .user-row__actions {
     @apply flex flex-wrap items-center gap-x-6 gap-y-2 inline-full;
 
     @variant @row {
-      @apply justify-end shrink-0;
+      @apply justify-end;
 
+      grid-column: 4;
       inline-size: auto;
     }
   }

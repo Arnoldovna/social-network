@@ -14,7 +14,14 @@ and the Tailwind 4 rules.
 ## Decision
 
 - Tokens: `maw-design-system/templates/tokens.css` copied verbatim to `apps/web/src/styles/tokens.css`, only
-  `--color-accent: var(--color-rose)` (`#E59797`). `@theme static`, every default namespace reset.
+  `--color-accent: var(--color-rose)` (`#E59797`). `@theme static`, every default namespace reset. **One project
+  token** is added (Phase 4a, Gate 3 carry-over), in section 7 (plain custom properties):
+  `--log-max-block-size: clamp(15rem, 100svh - 34rem, 40rem)` caps the chat log so the composer below it stays on
+  the first screen (at 390×844 the fixed 40rem cap pushed it to y≈965). `svh` (the viewport with the mobile toolbars
+  shown), not `dvh`: the first screen is the same, but a `dvh` cap resizes the log, and moves the composer, every time
+  the toolbars collapse or return while the page scrolls. A viewport unit is a raw length, which stylelint allows only
+  in tokens.css, so the rule cannot live in `base.css`/`utilities.css`; it never goes below 240px (320×568) or above
+  the former 640px. Any further token needs another amendment here.
 - Font: Schibsted Grotesk via **`@fontsource/schibsted-grotesk` 5.3.0, weights 400 and 500 only**
   (`import '@fontsource/schibsted-grotesk/400.css'` and `500.css` in `main.tsx`), the package the scaffold template
   ships, because the design system mandates the static two-weight setup. Licence copied to

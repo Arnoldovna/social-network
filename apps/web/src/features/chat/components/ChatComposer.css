@@ -3,7 +3,9 @@
 /*
  * ChatComposer: the underline textarea and the outlined "send" button (maw-design-system §6). The form is the size
  * container and its row queries it (an element never matches its own container): stacked on narrow containers, from
- * the `row` width (36rem) on the button sits at the end of the field, aligned to its underline.
+ * the `row` width (36rem) on the button sits at the end of the field. It is centred on the whole field block; label
+ * above and hint below are both one meta line, so the button lines up with the textarea between them (B-114: the
+ * button stays next to its field, never pinned elsewhere on the page).
  */
 @layer components {
   .chat-composer {

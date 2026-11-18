@@ -64,8 +64,8 @@ export function AboutPage() {
       </section>
       <WelcomeLinks
         links={[
-          { lead: 'Not a member yet?', to: '/welcome', label: 'Sign up' },
-          { lead: 'Already a member?', to: '/welcome/login', label: 'Log in' },
+          { lead: 'Not a member yet?', to: '/welcome', label: 'sign up' },
+          { lead: 'Already a member?', to: '/welcome/login', label: 'log in' },
         ]}
       />
     </div>

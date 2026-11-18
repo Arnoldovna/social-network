@@ -3,7 +3,7 @@
 /*
  * Profile header (F-24, F-40): the large square avatar, then name, bio and actions. Stacked in a narrow column; from
  * the `row` container width on, the picture sits left and the text column beside it (left-aligned, editorial). The
- * block is the container, its layout element is queried. Structural rules only; Phase 4 polishes.
+ * block is the container, its layout element is queried.
  */
 @layer components {
   .profile-header {
@@ -33,8 +33,9 @@
     @apply flex flex-col items-start gap-4 min-inline-0;
   }
 
+  /* Regular weight, like every other page title (Friends, Online, Chat): one headline weight across the app (§1). */
   .profile-header__name {
-    @apply m-0 text-title-l font-medium;
+    @apply m-0 text-title-l font-regular;
 
     overflow-wrap: anywhere;
   }

@@ -1,9 +1,14 @@
 @reference "#styles/main.css";
 
-/* EmptyState: maw components §12; the large size from the `row` container width on. */
+/*
+ * EmptyState: maw components §12. A left-aligned sentence, one muted line, one action, closed by a 1px rule like the
+ * list rows it stands in for; the large size from the `row` container width on. The `--section` modifier is the
+ * compact size under a section label: the title stays `text-title-s` and the padding is smaller, so it never competes
+ * with the page title.
+ */
 @layer components {
   .empty-state {
-    @apply flex flex-col items-start gap-4 pbs-12 pbe-12;
+    @apply flex flex-col items-start gap-4 pbs-12 pbe-12 border-be border-rule;
 
     container-type: inline-size;
   }
@@ -14,6 +19,14 @@
     @variant @row {
       @apply text-title-l;
     }
+
+    .empty-state--section & {
+      @apply text-title-s;
+    }
+  }
+
+  .empty-state--section {
+    @apply pbs-8 pbe-8;
   }
 
   .empty-state__text {

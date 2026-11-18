@@ -2,7 +2,11 @@
 
 /*
  * TextArea: the TextField anatomy for running text (bio, wall post, chat message). Body size instead of lead, so a
- * few lines fit; vertical resize only. Hint left, character count right on one meta line.
+ * few lines fit. Hint left, character count right on one meta line.
+ *
+ * No resize grip: a corner handle on an underline-only field reads as a box (maw-design-system §6 "Form field").
+ * Where the browser supports `field-sizing: content`, the field grows with its text between two and about five lines
+ * (spacing scale) and scrolls beyond that; elsewhere it keeps the height of its `rows` attribute and scrolls.
  */
 @layer components {
   .text-area {
@@ -16,10 +20,16 @@
   .text-area__input {
     @apply inline-full min-inline-0 m-0 pbs-2 pbe-2 ps-0 pe-0 text-body text-ink bg-paper font-sans font-regular;
 
-    resize: vertical;
+    resize: none;
     border: 0;
     border-block-end: var(--rule-width) solid var(--color-ink-muted);
     border-radius: 0;
+
+    @variant hover {
+      &:enabled:not([aria-invalid='true']) {
+        border-block-end-color: var(--color-ink);
+      }
+    }
 
     &[aria-invalid='true'] {
       padding-block-end: calc(--spacing(2) - var(--rule-width));
@@ -34,6 +44,12 @@
 
     &:disabled {
       @apply text-ink-muted cursor-not-allowed;
+    }
+
+    @supports (field-sizing: content) {
+      @apply min-block-16 max-block-32;
+
+      field-sizing: content;
     }
   }
 

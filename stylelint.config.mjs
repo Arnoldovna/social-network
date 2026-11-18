@@ -6,8 +6,19 @@
 /** BEM: block, block__element, block--modifier, block__element--modifier (kebab-case parts). */
 const BEM = '^[a-z][a-z0-9]*(?:-[a-z0-9]+)*(?:__[a-z0-9]+(?:-[a-z0-9]+)*)?(?:--[a-z0-9]+(?:-[a-z0-9]+)*)?$';
 
+/**
+ * Every CSS length unit (CSS Values 4): absolute, font-relative, viewport (with the small/large/dynamic variants) and
+ * container units. A unit missing here would let a raw length (`12pt`, `1.5lh`, `50svmin`) slip past the rule below.
+ */
+const LENGTH_UNITS = [
+  ...['px', 'cm', 'mm', '[qQ]', 'in', 'pt', 'pc'],
+  ...['em', 'rem', 'ex', 'rex', 'cap', 'rcap', 'ch', 'rch', 'ic', 'ric', 'lh', 'rlh'],
+  ...['', 's', 'l', 'd'].flatMap((prefix) => ['vw', 'vh', 'vi', 'vb', 'vmin', 'vmax'].map((unit) => prefix + unit)),
+  ...['cqw', 'cqh', 'cqi', 'cqb', 'cqmin', 'cqmax'],
+].join('|');
+
 /** Any raw length. Lengths live in tokens.css; elsewhere use tokens, --spacing(n) or @apply. */
-const RAW_LENGTH = '/(?<![\\w-])-?\\d*\\.?\\d+(px|rem|em|ch|vw|vh|dvh|svh|lvh|cqi|cqb)\\b/';
+const RAW_LENGTH = `/(?<![\\w-])-?\\d*\\.?\\d+(${LENGTH_UNITS})\\b/`;
 
 const TAILWIND_AT_RULES = [
   'theme',

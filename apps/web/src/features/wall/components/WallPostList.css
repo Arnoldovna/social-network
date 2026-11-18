@@ -1,6 +1,9 @@
 @reference "#styles/main.css";
 
-/* WallPostList: an unstyled ordered list of post rows, then "load older posts" with its error below. */
+/*
+ * WallPostList: an unstyled ordered list of post rows, then "load older posts" with its error below. The busy
+ * (aria-disabled, aria-busy) look of that button comes from Button.css.
+ */
 @layer components {
   .wall-post-list {
     @apply flex flex-col gap-8;
@@ -18,14 +21,5 @@
 
   .wall-post-list__more {
     @apply flex flex-col items-start gap-3;
-  }
-
-  /* Busy but focusable (aria-disabled, not disabled): muted outline, no hover inversion, a progress cursor. */
-  .wall-post-list__load {
-    &[aria-disabled='true'] {
-      @apply text-ink-muted bg-paper cursor-progress;
-
-      border-color: var(--color-ink-muted);
-    }
   }
 }

@@ -53,7 +53,6 @@ export function WallPostList({
               the older page loads, so keyboard users stay where they were. */}
           <Button
             variant="outlined"
-            className="wall-post-list__load"
             onClick={loadingOlder ? undefined : onLoadOlder}
             aria-disabled={loadingOlder ? true : undefined}
             aria-busy={loadingOlder ? true : undefined}

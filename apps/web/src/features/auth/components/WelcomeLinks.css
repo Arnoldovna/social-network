@@ -2,7 +2,8 @@
 
 /*
  * WelcomeLinks: the links at the end of the welcome pages, after generous space and a 1px rule (maw-design-system
- * §1), one per line at prose width. Structural rules only; visual polish follows in Phase 4.
+ * §1), one per line at prose width. They play the footer's part, so the link shakes on hover like a maw footer link
+ * (§6, pointer devices and motion-safe only); underline and hover thickness come from the base `a` rule.
  */
 @layer components {
   .welcome-links {
@@ -13,11 +14,17 @@
     @apply m-0;
   }
 
+  /*
+   * Inline-block, so the shake's translate moves the link (an inline box ignores it), and at least 24px tall like the
+   * buttons (WCAG 2.5.8); the text keeps the baseline of the sentence it ends.
+   */
   .welcome-links__link {
-    @apply text-ink;
+    @apply inline-block min-block-6;
 
     @variant hover {
-      text-decoration-thickness: var(--rule-width-strong);
+      @variant motion-safe {
+        @apply animate-shake;
+      }
     }
   }
 }

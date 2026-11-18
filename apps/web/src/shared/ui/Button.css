@@ -4,6 +4,12 @@
  * Button: pattern A (text + underline) is the block, pattern B (outlined rectangle) and the accent field are
  * modifiers (maw-design-system §6). The text variant inherits its colour, so it stays black on an accent field and
  * ink on paper in both themes (§4). No radius, no shadow, lowercase labels come from the copy.
+ *
+ * States (B-123, F-102): hover and press (`:active`, the only feedback on touch) thicken the underline or invert the
+ * rectangle; focus is the global ring from base.css. "Not available" is `:disabled` or `aria-disabled="true"`, styled
+ * alike: wall "load older posts" and the avatar "save" keep focus via `aria-disabled` while busy, so neither may
+ * react to hover or press. `aria-busy` shows the progress cursor. Colour changes ease in only under motion-safe and
+ * stay within `--duration-fast` (maw §7).
  */
 @layer components {
   .button {
@@ -17,13 +23,28 @@
     text-underline-offset: var(--underline-offset);
 
     @variant hover {
-      &:enabled {
+      &:enabled:not([aria-disabled='true']) {
         text-decoration-thickness: var(--rule-width-strong);
       }
     }
 
-    &:disabled {
+    &:active:enabled:not([aria-disabled='true']) {
+      text-decoration-thickness: var(--rule-width-strong);
+    }
+
+    &:disabled,
+    &[aria-disabled='true'] {
       @apply text-ink-muted cursor-not-allowed;
+    }
+
+    &[aria-busy='true'] {
+      @apply cursor-progress;
+    }
+
+    @variant motion-safe {
+      transition-property: color, background-color, border-color, text-decoration-thickness;
+      transition-duration: var(--duration-fast);
+      transition-timing-function: var(--ease-standard);
     }
   }
 
@@ -33,12 +54,17 @@
     border: var(--rule-width) solid var(--color-ink);
 
     @variant hover {
-      &:enabled {
+      &:enabled:not([aria-disabled='true']) {
         @apply bg-ink text-paper;
       }
     }
 
-    &:disabled {
+    &:active:enabled:not([aria-disabled='true']) {
+      @apply bg-ink text-paper;
+    }
+
+    &:disabled,
+    &[aria-disabled='true'] {
       border-color: var(--color-ink-muted);
     }
   }
@@ -49,8 +75,9 @@
 
     border-color: var(--color-on-accent);
 
-    /* Disabled falls back to the outlined look: muted text on paper reads as "not available" in both themes. */
-    &:disabled {
+    /* Not available falls back to the outlined look: muted text on paper reads as "not available" in both themes. */
+    &:disabled,
+    &[aria-disabled='true'] {
       @apply bg-paper text-ink-muted;
 
       border-color: var(--color-ink-muted);

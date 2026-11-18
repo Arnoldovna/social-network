@@ -2,9 +2,14 @@
 
 /*
  * WallPost: a list row (ADR-0015). Avatar left, then name and time, the text below and "delete post" as a text
- * button. The 1px rule below turns ink while the row is hovered or holds focus. The article is the size container;
- * from the `row` width on, the time moves to the end of the name line (an element never matches its own container,
- * so the query sits on the header).
+ * button. The 1px rule below turns ink while the row is hovered or holds focus. The article is the size container
+ * (an element never matches its own container, so the queries sit on its elements). Narrow, the row stacks like a maw
+ * list row: name, a 1px ink rule, then the time. From the `row` width on, the name grows to the list-row title size and
+ * the time moves to the end of the name line as the meta column (maw-design-system §3, §6).
+ *
+ * Motion (maw §7, motion-safe only): a row fades in when it enters (first page, an older page, a new post arriving
+ * live); posts already on screen keep their key and never fade again. The rule's colour change eases within
+ * `--duration-fast`.
  */
 @layer components {
   .wall-post {
@@ -15,6 +20,14 @@
     &:hover,
     &:focus-within {
       @apply border-rule-strong;
+    }
+
+    @variant motion-safe {
+      @apply animate-fade-in;
+
+      transition-property: border-color;
+      transition-duration: var(--duration-fast);
+      transition-timing-function: var(--ease-standard);
     }
   }
 
@@ -27,7 +40,7 @@
   }
 
   .wall-post__header {
-    @apply flex inline-full flex-col gap-1;
+    @apply flex inline-full flex-col gap-2;
 
     @variant @row {
       @apply flex-row items-baseline justify-between gap-4;
@@ -35,9 +48,13 @@
   }
 
   .wall-post__author {
-    @apply m-0 text-lead font-medium;
+    @apply m-0 text-title-s font-regular;
 
     overflow-wrap: anywhere;
+
+    @variant @row {
+      @apply text-title;
+    }
   }
 
   .wall-post__author-link {
@@ -53,9 +70,13 @@
   }
 
   .wall-post__time {
-    @apply shrink-0 text-meta text-ink-muted;
+    @apply shrink-0 pbs-2 text-meta text-ink-muted border-bs border-rule-strong;
 
     font-variant-numeric: tabular-nums;
+
+    @variant @row {
+      @apply pbs-0 border-0;
+    }
   }
 
   /* Text as typed: line breaks kept, long words and links wrap instead of widening the page (F-98). */
