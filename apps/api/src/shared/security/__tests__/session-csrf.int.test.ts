@@ -194,10 +194,13 @@ describe('session middleware', () => {
   it('B-02: the cookie holds only a signed, opaque id; a tampered signature is an anonymous request, not a 500', async () => {
     const { app } = sessionApp();
     const agent = request.agent(app);
-    const { response } = await signIn(agent, 42);
+    const { response, sessionId } = await signIn(agent, 42);
     const value = cookieLine(response, 'social-network.sid')?.split(';')[0] ?? '';
 
-    expect(value).not.toContain('42');
+    // The whole value is `s:<random id>.<HMAC>`: no room for the user id or any other session data. (A substring
+    // check for "42" is flaky, since a random id or signature contains it about once in 70 runs.)
+    expect(sessionId).toMatch(/^[\w-]{32}$/); // express-session's default id: 24 random bytes, base64url
+    expect(decodeURIComponent(value)).toMatch(new RegExp(`^social-network\\.sid=s:${sessionId}\\.[A-Za-z0-9+/]{43}$`));
     const tampered = `${value.slice(0, -2)}xx`;
     const me = await request(app).get('/api/me').set('Cookie', tampered);
     expect(me.status).toBe(401);

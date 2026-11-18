@@ -286,13 +286,14 @@ social-network/
 ├── e2e/
 │   ├── a11y.ts                  expectNoA11yViolations (after running transitions settle), …InDarkMode, …InBothSchemes, setColorScheme
 │   ├── fixtures/{api.ts, test.ts, images.ts, socket.ts, ui.ts}   API users + uploadAvatar; CSP fixture; image buffers; socket handshake/observer; shared UI helpers
-│   └── {routing,auth,profile,avatar,friends,search,wall,chat,presence,layout}.spec.ts
+│   ├── {routing,auth,profile,avatar,friends,search,wall,chat,presence,layout}.spec.ts
+│   └── readme-media.spec.ts     README screenshots and clip (`pnpm media:readme`, playwright.media.config.ts; not in `pnpm test:e2e`)
 ├── scripts/{check-no-utilities,setup-env,dev-setup,run-e2e}.mjs   dev-setup.mjs --demo = `pnpm demo`
-├── docs/ FEATURES.md  BUGS.md  architecture/  media/
+├── docs/ FEATURES.md  BUGS.md  architecture/  media/ (README screenshots + GIF, social preview, cover; raw/ ignored)
 ├── LICENSES/OFL-SchibstedGrotesk.txt
 ├── docker-compose.yml  docker-compose.e2e.yml  .env.example  .gitignore  .dockerignore  .gitleaks.toml  .gitleaks.dir.toml
 ├── eslint.config.js  eslint.shared.js  stylelint.config.mjs  tsconfig.base.json  tsconfig.json
-├── vitest.config.ts  playwright.config.ts  lefthook.yml  lint-staged.config.js  commitlint.config.js
+├── vitest.config.ts  playwright.config.ts  playwright.media.config.ts  lefthook.yml  lint-staged.config.js  commitlint.config.js
 ├── .prettierrc.json  .prettierignore  .editorconfig  .nvmrc (26)  .npmrc (engine-strict)  pnpm-workspace.yaml  package.json
 └── LICENSE (MIT, Arnoldovna)  README.md
 ```

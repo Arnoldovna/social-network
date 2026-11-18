@@ -450,3 +450,31 @@ B-38) then moves into `routing.spec.ts`.
 **Gate 5** (branch `test/e2e`; Definition of Done from PLAN.md: CI green, all FEATURES met, all BUGS solved, no utility classes, only maw
 tokens, gitleaks clean, axe without critical violations; `pnpm verify` run twice in a row starts from the same state). README with screenshots follows in Etappe 3
 (`portfolio-readme`).
+
+---
+
+## Etappe 3 – Presentation
+
+Branch `docs/presentation` (PLAN.md Etappe 3). Units in parallel, then one serial integration step and the quality
+gate. The units run against the seeded `pnpm demo` stack, which only the orchestrator starts and stops.
+
+| Unit      | Files                                                                                                 | Covers                       |
+| --------- | ----------------------------------------------------------------------------------------------------- | ---------------------------- |
+| readme    | `README.md`, `docs/media/{desktop-light,desktop-dark,mobile-light}.png`, `docs/media/main-flow.gif`   | B-142, FEATURES §13 (scope)  |
+| canvas    | `docs/media/social-preview.png` (1280×640), `cover.png`, `design-philosophy.md` (canvas-design, OFL)  | PLAN Etappe 3                |
+| security  | `/security-review`, gitleaks (history + dir), `pnpm audit --prod --audit-level=high`; fixes in owners | B-01 – B-59 re-check         |
+| integrate | `e2e/readme-media.spec.ts`, `playwright.media.config.ts`, `pnpm media:readme`, traceability evidence  | README media is reproducible |
+
+README media is regenerated, never hand-cropped: `pnpm demo`, then `E2E_BASE_URL=<printed URL> pnpm media:readme`
+(it logs in as the demo user twice, once for the three screenshots and once on camera, since production allows 10
+auth requests per 15 minutes; it reads only `SEED_DEMO_PASSWORD`, resolved like `pnpm demo` does: process
+environment, else `.env`; the clip writes one wall post and deletes it again, so the demo data ends as it started;
+the raw clip is saved only when the whole flow passed; the GIF command is in the spec's header; `docs/media/raw/` is
+git-ignored). `playwright.config.ts` ignores the spec, so
+`pnpm test:e2e` never captures media. The social preview is uploaded by Marina in the repository settings (no API).
+
+Done when: README follows `portfolio-readme` (hero screenshot, GIF < 3 MB, PNGs < 1 MB, Mermaid diagram, 2018 vs
+2026 table, getting started with `pnpm demo` and `pnpm dev:setup`, scripts, testing, CI/CD, credits, MIT), it does
+not promise private chat (ADR-0011), no secrets or legal name in it, the security re-check has no HIGH or MEDIUM
+finding, `pnpm verify` green. Open for Marina: the social preview upload, removing personal email addresses from
+the git history, and the public switch.

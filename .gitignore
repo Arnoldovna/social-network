@@ -28,3 +28,6 @@ credentials*.json
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# README media: raw recordings (e2e/readme-media.spec.ts), converted to docs/media/*.gif with the ffmpeg command in the spec header
+docs/media/raw/
