@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router';
 
 import { TextField } from '../../../shared/ui/TextField';
 import { useRegisterMutation } from '../auth.api';
+import { WELCOME_ABOUT_PATH } from '../../../shared/lib/paths';
 import { AuthForm, useAuthForm } from '../components/AuthForm';
 import { WelcomeLinks } from '../components/WelcomeLinks';
 import './RegisterPage.css';
@@ -79,7 +80,7 @@ export function RegisterPage() {
       <WelcomeLinks
         links={[
           { lead: 'Already a member?', to: '/welcome/login', label: 'log in' },
-          { to: '/welcome/about', label: 'about' },
+          { to: WELCOME_ABOUT_PATH, label: 'about' },
         ]}
       />
     </div>

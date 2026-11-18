@@ -25,22 +25,47 @@ function signedIn() {
   server.use(http.get(apiUrl('/me'), () => HttpResponse.json({ user: MIRA })));
 }
 
-describe('NotFoundPage (F-04)', () => {
+describe('NotFoundRoute (F-04)', () => {
   it.each(['/no-such-page', '/welcome/no-such-page', '/users/7/posts'])(
-    'shows "Page not found" with a link to the start page at %s, without asking the API',
+    'shows a visitor "Page not found" in its own shell with a link to the start page at %s',
     async (path) => {
-      // No MSW handler: any request would fail the test (onUnhandledFrame: 'error').
+      server.use(http.get(apiUrl('/me'), () => problemResponse(401, 'unauthorized')));
       renderApp(path);
 
       expect(await screen.findByRole('heading', { level: 1, name: 'Page not found' })).toBeInTheDocument();
       const main = screen.getByRole('main');
       expect(within(main).getByRole('link', { name: 'back to the start page' })).toHaveAttribute('href', '/');
       expect(screen.getByRole('banner')).toBeInTheDocument();
+      // The visitor shell has the wordmark only, no site navigation.
+      expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
       await waitFor(() => {
         expect(document.title).toBe("Page not found · Let's chat!");
       });
     },
   );
+
+  it('shows a signed-in user "Page not found" inside the app layout, with the site navigation and footer', async () => {
+    signedIn();
+    renderApp('/no-such-page');
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Page not found' })).toBeInTheDocument();
+    const main = screen.getByRole('main');
+    expect(within(main).getByRole('link', { name: 'back to the start page' })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('navigation', { name: 'Main' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'log out' })).toBeInTheDocument();
+    expect(within(screen.getByRole('contentinfo')).getByRole('link', { name: 'about' })).toHaveAttribute(
+      'href',
+      '/about',
+    );
+  });
+
+  it('still says "Page not found", in the visitor shell, when GET /api/me fails', async () => {
+    server.use(http.get(apiUrl('/me'), () => problemResponse(500, 'internal')));
+    renderApp('/no-such-page');
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Page not found' })).toBeInTheDocument();
+    expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
+  });
 });
 
 describe('RouteErrorPage (F-105)', () => {

@@ -10,9 +10,8 @@
     @apply inline-flex items-center;
   }
 
+  /* Proportional figures for `formatCount` output, like every count (ADR-0015: "2 , 000"). */
   .friends-nav-badge__count {
     @apply inline-flex items-center pbs-1 pbe-1 ps-2 pe-2 bg-accent text-on-accent text-micro font-medium leading-none;
-
-    font-variant-numeric: tabular-nums;
   }
 }

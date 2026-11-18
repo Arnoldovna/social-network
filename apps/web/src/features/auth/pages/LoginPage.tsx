@@ -5,6 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router';
 import { messageFor } from '../../../shared/api/problem';
 import { TextField } from '../../../shared/ui/TextField';
 import { useLoginMutation } from '../auth.api';
+import { WELCOME_ABOUT_PATH } from '../../../shared/lib/paths';
 import { AuthForm, useAuthForm } from '../components/AuthForm';
 import { WelcomeLinks } from '../components/WelcomeLinks';
 import './LoginPage.css';
@@ -74,7 +75,7 @@ export function LoginPage() {
       <WelcomeLinks
         links={[
           { lead: 'Not a member yet?', to: '/welcome', label: 'sign up' },
-          { to: '/welcome/about', label: 'about' },
+          { to: WELCOME_ABOUT_PATH, label: 'about' },
         ]}
       />
     </div>

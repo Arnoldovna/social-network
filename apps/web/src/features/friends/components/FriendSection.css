@@ -17,10 +17,9 @@
     @apply m-0 text-caption font-medium;
   }
 
+  /* Proportional figures for `formatCount` output, like every count (ADR-0015: "2 , 000"). */
   .friend-section__count {
     @apply m-0 text-meta text-ink-muted;
-
-    font-variant-numeric: tabular-nums;
   }
 
   .friend-section__list {

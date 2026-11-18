@@ -190,7 +190,7 @@ describe('SiteHeader (F-92, F-94, B-109)', () => {
     expect(menuButton).toHaveAttribute('aria-expanded', 'false');
   });
 
-  it('F-94: keeps the focus order equal to the visual order: bar first, then the panel', async () => {
+  it('F-94: keeps the focus order equal to the visual order: bar first, then the panel, "log out" last', async () => {
     // happy-dom applies no stylesheet, so the panel is reachable while "closed"; this checks the DOM order only, which
     // is the visual order of both layouts (SiteHeader.css).
     const { user, menuButton } = renderHeader();
@@ -199,8 +199,11 @@ describe('SiteHeader (F-92, F-94, B-109)', () => {
       screen.getByRole('button', { name: 'change profile picture' }),
       menuButton,
       screen.getByRole('searchbox', { name: 'find people' }),
-      screen.getByRole('button', { name: 'log out' }),
       screen.getByRole('link', { name: 'profile' }),
+      screen.getByRole('link', { name: /^friends/ }),
+      screen.getByRole('link', { name: 'online' }),
+      screen.getByRole('link', { name: 'chat' }),
+      screen.getByRole('button', { name: 'log out' }),
     ];
 
     for (const element of expected) {

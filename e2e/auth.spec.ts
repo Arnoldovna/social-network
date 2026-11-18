@@ -456,9 +456,17 @@ test.describe('logout and session end', () => {
 
     const page = await pageAs(user);
     const sockets = observeRealtimeSockets(page);
+    // Every answer of the session renews its cookie (rolling sessions), so a request still in flight when the cookie is
+    // swapped below would put the live cookie back. The profile page's own requests must have answered first.
+    const settled = Promise.all(
+      ['/api/me', `/api/users/${String(user.id)}/posts`, '/api/friendships'].map((path) =>
+        page.waitForResponse((response) => new URL(response.url()).pathname === path),
+      ),
+    );
     await page.goto('/');
     await expectOwnProfile(page, user);
     await expectOneConnectedSocket(sockets);
+    await settled;
 
     // The session runs out while the page is open. The socket keeps its handshake until the server's sweep, so only
     // the next HTTP request notices.

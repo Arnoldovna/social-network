@@ -38,7 +38,7 @@ export function isScrolledToBottom(element: HTMLElement): boolean {
   return element.scrollHeight - element.scrollTop - element.clientHeight <= BOTTOM_THRESHOLD_PX;
 }
 
-function scrollToEnd(element: HTMLElement): void {
+export function scrollToEnd(element: HTMLElement): void {
   element.scrollTop = element.scrollHeight;
 }
 

@@ -28,6 +28,8 @@
   .chat-log__scroller {
     @apply overflow-y-auto pbe-2 border-bs border-ink-muted;
 
+    /* use-fit-whole-rows sets the fitted size, so the resting log starts with a whole row (ADR-0015). */
+    block-size: var(--chat-log-fit-block-size, auto);
     max-block-size: var(--log-max-block-size);
     overflow-anchor: none;
     overscroll-behavior: contain;

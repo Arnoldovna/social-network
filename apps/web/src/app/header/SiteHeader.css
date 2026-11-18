@@ -3,11 +3,11 @@
 /*
  * Site header (maw-design-system §6 "Site header", ADR-0015). It never fits one row (wordmark, search, avatar,
  * "log out" and four links need about 1,050 px), so:
- * - below 640 px: wordmark, avatar button and "menu" in one row; the panel (search, "log out", navigation) opens
+ * - below 640 px: wordmark, avatar button and "menu" in one row; the panel (search, navigation, "log out" last) opens
  *   underneath as a column between two 1px rules;
- * - from 640 px: the panel dissolves into the header grid (`display: contents`): row 1 holds wordmark, avatar,
- *   search and "log out", row 2 the navigation above a 1px rule. The header is sticky, solid paper, and fades into
- *   the page below with `--header-fade` (the only gradient maw allows).
+ * - from 640 px: the panel dissolves into the header grid (`display: contents`): row 1 holds wordmark, avatar and
+ *   search, row 2 the navigation with "log out" at its end, above one 1px rule. The header is sticky, solid paper, and
+ *   fades into the page below with `--header-fade` (the only gradient maw allows).
  * The grid areas follow the DOM order, so what is seen is also the focus order.
  */
 @layer components {
@@ -35,10 +35,10 @@
       @apply sticky inset-bs-0 gap-x-6 pbs-8 pbe-0 ps-5 pe-5;
 
       z-index: var(--layer-header);
-      grid-template-columns: minmax(0, 1fr) auto auto auto;
+      grid-template-columns: minmax(0, 1fr) auto auto;
       grid-template-areas:
-        'brand avatar search logout'
-        'nav nav nav nav';
+        'brand avatar search'
+        'nav nav nav';
     }
   }
 
@@ -127,19 +127,25 @@
     }
   }
 
-  .site-header__logout {
-    @apply flex items-center;
+  /*
+   * The navigation with "log out" at its end: below 640 px two more items of the panel's column, from 640 px row 2 of
+   * the header above one 1px rule.
+   */
+  .site-header__nav-row {
+    @apply flex flex-col gap-6;
 
     @variant sm {
-      grid-area: logout;
+      @apply flex-row items-center justify-between gap-6 pbs-2 pbe-3 border-be border-rule;
+
+      grid-area: nav;
     }
   }
 
   .site-header__nav {
-    @variant sm {
-      @apply pbs-2 pbe-3 border-be border-rule;
+    @apply min-inline-0;
+  }
 
-      grid-area: nav;
-    }
+  .site-header__logout {
+    @apply flex items-center;
   }
 }

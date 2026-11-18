@@ -3,6 +3,7 @@ import type { ChatMessage, UserSummary } from '@app/shared';
 import { Button } from '../../../shared/ui/Button';
 import { EmptyState } from '../../../shared/ui/EmptyState';
 import { FieldError } from '../../../shared/ui/FieldError';
+import { useFitWholeRows } from '../use-fit-whole-rows';
 import { useStickToBottom } from '../use-stick-to-bottom';
 import { ChatMessageItem } from './ChatMessageItem';
 import './ChatLog.css';
@@ -69,6 +70,7 @@ export function ChatLog({ messages, pending, currentUser, older, onRetry, onDisc
   });
 
   const isEmpty = messages.length === 0 && shownPending.length === 0;
+  useFitWholeRows(ref, !isEmpty);
 
   return (
     <div className="chat-log">

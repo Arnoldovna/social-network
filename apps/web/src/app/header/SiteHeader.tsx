@@ -14,9 +14,10 @@ import './SiteHeader.css';
  * "log out". The feature parts come from their `index.ts` (search, avatars, auth here; friends inside `MainNav`).
  *
  * One DOM, two layouts, switched by CSS only (SiteHeader.css):
- * - from 640 px, two rows: wordmark, avatar button, search and "log out" in the first; the navigation in the second;
+ * - from 640 px, two rows: wordmark, avatar button and search in the first; the navigation and, at its end, "log out"
+ *   in the second;
  * - below 640 px, wordmark, avatar button and a "menu" disclosure button (`aria-expanded`, `aria-controls`, F-94,
- *   B-109) that shows the search, the navigation and "log out" in a panel below.
+ *   B-109) that shows the search, the navigation and, last, "log out" in a panel below.
  * The DOM order is the visual order in both layouts, so the focus order follows what is seen (WCAG 2.4.3), and the
  * panel comes right after its button.
  */
@@ -68,11 +69,13 @@ export function SiteHeader() {
         <div className="site-header__search">
           <HeaderSearch />
         </div>
-        <div className="site-header__logout">
-          <LogoutButton />
-        </div>
-        <div className="site-header__nav">
-          <MainNav />
+        <div className="site-header__nav-row">
+          <div className="site-header__nav">
+            <MainNav />
+          </div>
+          <div className="site-header__logout">
+            <LogoutButton />
+          </div>
         </div>
       </div>
     </header>

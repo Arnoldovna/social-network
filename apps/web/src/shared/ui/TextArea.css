@@ -61,10 +61,13 @@
     @apply m-0 text-meta text-ink-muted;
   }
 
+  /*
+   * Proportional figures: Schibsted Grotesk's tabular set gives the thousands separator a full figure width, which
+   * reads as "2 , 000" together with the meta tracking. The count sits at the end of its line, so its changing width
+   * never moves anything else.
+   */
   .text-area__count {
     @apply m-0 ms-auto text-meta text-ink-muted;
-
-    font-variant-numeric: tabular-nums;
   }
 
   /* Over the limit: ink and medium weight, so the state never depends on colour alone (§4). */

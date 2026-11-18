@@ -1,0 +1,44 @@
+@reference "#styles/main.css";
+
+/*
+ * Site footer (maw-design-system §6 "Footer", ADR-0015): a 1px ink-muted rule on top, lowercase meta links spread
+ * across, the copyright year at the end. The links are ink without an underline, as in the maw pattern; hover adds the
+ * 1px line (visible without motion) and shakes them under motion-safe. Every link is at least 24px tall (WCAG 2.5.8).
+ */
+@layer components {
+  .site-footer {
+    @apply flex flex-wrap items-baseline justify-between gap-x-6 gap-y-3 mx-3 pbs-6 pbe-8 text-meta;
+
+    border-block-start: var(--rule-width) solid var(--color-ink-muted);
+
+    @variant sm {
+      @apply mx-5;
+    }
+  }
+
+  .site-footer__links {
+    @apply flex flex-wrap items-baseline gap-x-6 gap-y-2 m-0 p-0;
+
+    list-style: none;
+  }
+
+  .site-footer__item {
+    @apply flex;
+  }
+
+  .site-footer__link {
+    @apply inline-flex items-center min-block-6 text-ink no-underline;
+
+    @variant hover {
+      @apply underline;
+
+      @variant motion-safe {
+        @apply animate-shake;
+      }
+    }
+  }
+
+  .site-footer__copyright {
+    @apply m-0 text-ink-muted;
+  }
+}

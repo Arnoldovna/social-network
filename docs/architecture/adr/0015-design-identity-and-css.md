@@ -55,6 +55,28 @@ and the Tailwind 4 rules.
     768, 1024, 1280 and 1440 px; the design review screenshots include 768 and 1024.
     This deviates from the maw single-row header (1–3 links) only in the second row, which the review rubric's
     "header wraps cleanly" criterion allows.
+- **Header amendment (Etappe 3b, design re-review):** "log out" moved to the end. Below 640 px it is the last item
+  of the menu panel (after the navigation, not between search and navigation); from 640 px it sits at the end of row
+  2, right-aligned on the navigation's rule, and row 1 holds wordmark, avatar button and search. The DOM order stays
+  the visual order in both layouts. Navigation and "log out" share one row element (`site-header__nav-row`), which
+  owns row 2 and its rule.
+- **Footer (Etappe 3b, maw-design-system §6 "Footer"):** `app/footer/SiteFooter` closes both layouts (in the welcome
+  layout it spans both columns): a 1px `ink-muted` rule on top, lowercase meta links "about" and "github", then
+  "© 2026" (the publication year, not the current one). "about" is `/welcome/about` for visitors and `/about` (the
+  same page without the sign-up/log-in links) for members, because the welcome area redirects members to `/`. There is
+  deliberately **no imprint link** (Marina's decision for this portfolio project; PLAN.md's footer note is superseded
+  here).
+- **Chat log rests on whole rows (Etappe 3b):** a log capped by `--log-max-block-size` and scrolled to the newest
+  message cut its topmost row in half right under the log's rule, which read as a rendering fault. Scroll snapping
+  cannot fix this (at the end position the cut is set by the cap, and snapping to a row start would hide part of the
+  newest message instead), and a different cap only moves the cut. `features/chat/use-fit-whole-rows.ts` therefore
+  sets the scroller's block size (custom property `--chat-log-fit-block-size`, read by ChatLog.css; the cap stays the
+  token) to the newest rows that fit whole, when the first rows render, when the web font has loaded and on resize,
+  but not for every new message, so the composer never jumps while someone types. Scrolled up, rows are cut as in
+  any scroll container. The token itself is unchanged.
+- **Counts use proportional figures** (`formatCount` output: the text-area count, the online and friends counts,
+  the friend-request badge): Schibsted Grotesk's tabular comma is a full figure wide and, with the meta tracking,
+  read as "2 , 000". Dates and times keep tabular figures.
 - Names render as stored; any uppercase styling is CSS `text-transform` (F-58, B-110), though the maw identity uses
   none.
 - Dark mode via token redefinition only (`prefers-color-scheme`), no `dark:` variants. **No theme bootstrap

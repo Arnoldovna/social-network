@@ -17,10 +17,9 @@
     @apply m-0 text-title-l font-regular;
   }
 
+  /* Proportional figures for `formatCount` output, like every count (ADR-0015: "2 , 000"). */
   .online-page__count {
     @apply m-0 text-meta text-ink-muted;
-
-    font-variant-numeric: tabular-nums;
   }
 
   .online-page__list {

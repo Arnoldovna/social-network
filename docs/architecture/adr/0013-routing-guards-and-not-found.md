@@ -26,9 +26,16 @@ Legacy routing mixed `HashRouter` (welcome, nested about router) and `BrowserRou
    │  ├─ users/:id     UserProfilePage loader: id === me → redirect('/') (F-41)
    │  ├─ friends       FriendsPage
    │  ├─ online        OnlinePage
-   │  └─ chat          ChatPage        title "Chat · Let's chat!"
-   └─ *                NotFoundPage    "Page not found" + link to "/" (F-04)
+   │  ├─ chat          ChatPage        title "Chat · Let's chat!"
+   │  └─ about         AboutPage       member variant without the sign-up/log-in links (footer "about", ADR-0015)
+   └─ *                NotFoundRoute   loader: notFound; "Page not found" + link to "/" (F-04)
 ```
+
+- **Not found with the site navigation** (amended in Etappe 3b after the design re-review): the `*` route's
+  `notFound` loader reads `getMe` like the guards but never redirects and never fails. A signed-in user sees "Page not
+  found" inside `AppLayout` (header, navigation, footer; the layout takes it as `children` instead of its outlet), so
+  they are never stranded without the menu; a visitor, or anyone while `GET /me` cannot answer, sees the standalone
+  page with the wordmark only.
 
 - The error boundary sits on a pathless child of RootLayout (amended at Gate 1c), not on the root route itself: an
   `errorElement` replaces its route's element, so on the root it would drop the skip link (F-103) and the

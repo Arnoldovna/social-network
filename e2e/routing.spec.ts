@@ -234,6 +234,9 @@ test.describe('not found', () => {
     expect(response?.status()).toBe(200);
     await expect(pageHeading(page, 'Page not found')).toBeVisible();
     await expect(page).toHaveTitle(pageTitle('Page not found'));
+    // The visitor shell: wordmark and footer, no site navigation (ADR-0013).
+    await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(0);
+    await expect(page.getByRole('contentinfo')).toBeVisible();
     await expectNoA11yViolationsInBothSchemes(page);
 
     // The start page is `/`, which sends a visitor on to the welcome page (F-01).
@@ -251,6 +254,10 @@ test.describe('not found', () => {
 
     await expect(pageHeading(page, 'Page not found')).toBeVisible();
     await expect(page).toHaveTitle(pageTitle('Page not found'));
+    // Inside the app layout (ADR-0013): the site header is there (below 640 px its navigation is behind "menu"), so
+    // the user is never stranded. The avatar button is in the bar at every width.
+    await expect(page.getByRole('banner').getByRole('button', { name: 'change profile picture' })).toBeVisible();
+    await expectNoA11yViolations(page);
     await page
       .getByRole('main')
       .getByRole('link', { name: /back to the start page/i })

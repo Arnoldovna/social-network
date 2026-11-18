@@ -13,7 +13,7 @@ import { ConnectionBanner } from './ConnectionBanner';
 import { AppLayout } from './layouts/AppLayout';
 import { WelcomeLayout } from './layouts/WelcomeLayout';
 import { createLoaders } from './loaders';
-import { NotFoundPage } from './pages/NotFoundPage';
+import { NotFoundRoute } from './pages/NotFoundPage';
 import { RouteErrorPage } from './pages/RouteErrorPage';
 import type { AppStore } from './store';
 
@@ -107,8 +107,9 @@ function InitialLoading() {
  *    │  ├─ users/:id   UserProfilePage             redirectIfOwnProfile → / (F-41)
  *    │  ├─ friends     FriendsPage
  *    │  ├─ online      OnlinePage
- *    │  └─ chat        ChatPage
- *    └─ *              NotFoundPage                (F-04)
+ *    │  ├─ chat        ChatPage
+ *    │  └─ about       AboutPage (member variant)  the footer's "about" for members (ADR-0015)
+ *    └─ *              NotFoundRoute               (F-04) inside AppLayout for a member, standalone for a visitor
  * ```
  */
 export function createRoutes(store: AppStore): RouteObject[] {
@@ -143,9 +144,10 @@ export function createRoutes(store: AppStore): RouteObject[] {
                 { path: 'friends', element: <FriendsPage /> },
                 { path: 'online', element: <OnlinePage /> },
                 { path: 'chat', element: <ChatPage /> },
+                { path: 'about', element: <AboutPage audience="member" /> },
               ],
             },
-            { path: '*', element: <NotFoundPage /> },
+            { path: '*', element: <NotFoundRoute />, loader: loaders.notFound },
           ],
         },
       ],

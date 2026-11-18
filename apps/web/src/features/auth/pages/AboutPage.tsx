@@ -27,11 +27,18 @@ const TECHNOLOGIES: readonly Technology[] = [
   { name: 'Docker and GitHub Actions', role: 'production images, tested end to end on every pull request' },
 ];
 
+export interface AboutPageProps {
+  /**
+   * `visitor` (default): `/welcome/about`, ending with the links to sign up and log in (F-96). `member`: `/about`, the
+   * footer's "about" inside the app area, without those links (a member is already signed in).
+   */
+  audience?: 'visitor' | 'member';
+}
+
 /**
- * `/welcome/about` (F-97, F-96): what the project is and what it is built with. Reachable without an account; links
- * back to sign up and log in at the end.
+ * What the project is and what it is built with (F-97): `/welcome/about` for visitors, `/about` for members.
  */
-export function AboutPage() {
+export function AboutPage({ audience = 'visitor' }: AboutPageProps) {
   const stackHeadingId = useId();
 
   return (
@@ -62,12 +69,14 @@ export function AboutPage() {
           ))}
         </dl>
       </section>
-      <WelcomeLinks
-        links={[
-          { lead: 'Not a member yet?', to: '/welcome', label: 'sign up' },
-          { lead: 'Already a member?', to: '/welcome/login', label: 'log in' },
-        ]}
-      />
+      {audience === 'visitor' ? (
+        <WelcomeLinks
+          links={[
+            { lead: 'Not a member yet?', to: '/welcome', label: 'sign up' },
+            { lead: 'Already a member?', to: '/welcome/login', label: 'log in' },
+          ]}
+        />
+      ) : null}
     </div>
   );
 }

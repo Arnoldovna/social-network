@@ -19,18 +19,29 @@ export const HOME_PATH = '/';
  * `ApiError`.
  */
 export async function loadCurrentUser(store: AppStore): Promise<Me | null> {
+  const result = await readCurrentUser(store);
+  if ('user' in result) {
+    return result.user;
+  }
+  // The `ApiError` travels as the cause, so `RouteErrorPage` can show its user-facing message.
+  throw new Error(errorMessage(result.error, 'The signed-in user could not be loaded.'), { cause: result.error });
+}
+
+/** `loadCurrentUser` without the throw: the user (`null` for a visitor), or the failure of `GET /api/me`. */
+async function readCurrentUser(store: AppStore): Promise<{ user: Me | null } | { error: unknown }> {
   // `subscribe: false`: a loader is not a component; the entry stays cached without a subscription (keepUnusedDataFor
   // is infinite for `getMe`), so nothing has to be unsubscribed.
   const result = await store.dispatch(meApi.endpoints.getMe.initiate(undefined, { subscribe: false }));
   if (result.isSuccess) {
-    return result.data.user;
+    return { user: result.data.user };
   }
   const { error } = result;
-  if (isApiError(error) && error.status === 401) {
-    return null;
-  }
-  // The `ApiError` travels as the cause, so `RouteErrorPage` can show its user-facing message.
-  throw new Error(errorMessage(error, 'The signed-in user could not be loaded.'), { cause: error });
+  return isApiError(error) && error.status === 401 ? { user: null } : { error };
+}
+
+/** What the not-found route renders with (`createLoaders().notFound`). */
+export interface NotFoundData {
+  signedIn: boolean;
 }
 
 /**
@@ -64,6 +75,16 @@ export function createLoaders(store: AppStore) {
       }
       const id = IdParam.safeParse(params['id']);
       return id.success && id.data === user.id ? redirect(HOME_PATH) : null;
+    },
+
+    /**
+     * Every unmatched path (F-04): whether to show "Page not found" inside the app layout, with the site navigation, for
+     * a signed-in user, or in its own shell for a visitor (ADR-0013). Never redirects and never fails: when `GET /me`
+     * cannot answer (network, 5xx), the page still says "not found", in the visitor shell.
+     */
+    notFound: async (): Promise<NotFoundData> => {
+      const result = await readCurrentUser(store);
+      return { signedIn: 'user' in result && result.user !== null };
     },
   };
 }

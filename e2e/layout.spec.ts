@@ -224,7 +224,7 @@ function headerAvatarButton(page: Page): Locator {
   return banner(page).getByRole('button', { name: 'Change profile picture' });
 }
 
-/** Below 640 px the search, "log out" and the navigation live in the "menu" panel; this opens it (F-94). */
+/** Below 640 px the search, the navigation and "log out" live in the "menu" panel; this opens it (F-94). */
 async function revealHeaderPanel(page: Page): Promise<void> {
   await openHeaderPanelIfCollapsed(page);
   if (usesHeaderPanel(page)) await expect(mainNav(page)).toBeVisible();
@@ -809,13 +809,19 @@ test.describe('header and navigation', () => {
     await expect(logoutButton(page)).toBeHidden();
     await expect(headerSearch(page)).toBeHidden();
 
-    // Pointer: the button opens the panel it controls, which holds the search, "log out" and the navigation.
+    // Pointer: the button opens the panel it controls, which holds the search, the navigation and, last, "log out".
     await menu.click();
     await expect(menu).toHaveAttribute('aria-expanded', 'true');
     await expect(panel).toBeVisible();
     await expect(panel.getByRole('navigation', { name: 'Main' }).getByRole('link')).toHaveText([...MAIN_NAV_LINKS]);
     await expect(panel.getByRole('combobox', { name: 'find people' })).toBeVisible();
     await expect(panel.getByRole('button', { name: 'log out', exact: true })).toBeVisible();
+    const lastNavLink = await boxOf(
+      panel.getByRole('link', { name: MAIN_NAV_LINKS.at(-1) ?? '', exact: true }),
+      'last navigation link',
+    );
+    const panelLogout = await boxOf(panel.getByRole('button', { name: 'log out', exact: true }), '"log out"');
+    expect(panelLogout.top, '"log out" is below the navigation').toBeGreaterThanOrEqual(lastNavLink.bottom);
     expect(overlapping([await boxOf(menu, 'menu button'), await boxOf(panel, 'menu panel')])).toEqual([]);
     expect(outsideViewport([await boxOf(panel, 'menu panel')], SMALL_VIEWPORT.width)).toEqual([]);
 
@@ -879,21 +885,24 @@ test.describe('header and navigation', () => {
           await boxOf(header.getByRole('link', { name: "let's chat", exact: true }), 'logo'),
           await boxOf(headerAvatarButton(page), 'avatar button'),
           await boxOf(headerSearch(page), 'search field'),
-          await boxOf(logoutButton(page), '"log out"'),
         ];
         const navLinks = await Promise.all(
           MAIN_NAV_LINKS.map((label) =>
             boxOf(mainNav(page).getByRole('link', { name: label, exact: true }), `"${label}" link`),
           ),
         );
-        const everything = [...rowOne, ...navLinks];
+        const logout = await boxOf(logoutButton(page), '"log out"');
+        const rowTwo = [...navLinks, logout];
+        const everything = [...rowOne, ...rowTwo];
         expect(outsideViewport(everything, width)).toEqual([]);
         expect(overlapping(everything)).toEqual([]);
 
-        // Two rows (ADR-0015): the navigation starts below everything in the first row.
+        // Two rows (ADR-0015): the navigation and "log out" start below everything in the first row, and "log out"
+        // ends the second row, after the last navigation link.
         const rowOneBottom = Math.max(...rowOne.map((box) => box.bottom));
-        for (const link of navLinks)
-          expect(link.top, `${link.label} is in the second row`).toBeGreaterThanOrEqual(rowOneBottom - TOLERANCE_PX);
+        for (const item of rowTwo)
+          expect(item.top, `${item.label} is in the second row`).toBeGreaterThanOrEqual(rowOneBottom - TOLERANCE_PX);
+        expect(logout.left).toBeGreaterThan(Math.max(...navLinks.map((box) => box.right)));
 
         expect(await layoutProblems(page)).toEqual([]);
       });
@@ -1374,6 +1383,44 @@ test.describe('design tokens', () => {
 });
 
 // ---------------------------------------------------------------------------------------------------------------------
+// Footer (ADR-0015, maw-design-system §6)
+// ---------------------------------------------------------------------------------------------------------------------
+
+test.describe('footer', () => {
+  async function expectFooter(page: Page, aboutPath: string): Promise<void> {
+    const footer = page.getByRole('contentinfo');
+    await expect(footer).toBeVisible();
+    await expect(footer.getByRole('link')).toHaveText(['about', 'github']);
+    await expect(footer.getByRole('link', { name: 'about' })).toHaveAttribute('href', aboutPath);
+    await expect(footer.getByRole('link', { name: 'github' })).toHaveAttribute(
+      'href',
+      'https://github.com/Arnoldovna/social-network',
+    );
+    await expect(footer).toContainText('© 2026');
+    expect(await layoutProblems(page)).toEqual([]);
+  }
+
+  test('the welcome pages end with the footer; its "about" is the visitor about page', async ({ page }) => {
+    await openPage(page, { name: 'sign up', path: '/welcome', heading: 'Sign up', member: false });
+    await expectFooter(page, '/welcome/about');
+  });
+
+  test('the app pages end with the footer; its "about" opens the member about page', async ({ community, pageAs }) => {
+    const page = await pageAs(community.me);
+    await openPage(page, memberPage('own profile', community));
+    await expectFooter(page, '/about');
+
+    await page.getByRole('contentinfo').getByRole('link', { name: 'about' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'About' })).toBeVisible();
+    await expect(page).toHaveURL(/\/about$/);
+    // Members are signed in already: no sign-up and log-in links, but the site navigation stays.
+    await expect(page.getByRole('main').getByRole('link', { name: 'sign up' })).toHaveCount(0);
+    await expect(banner(page)).toBeVisible();
+    await expectAccessible(page);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
 // Keyboard and motion (F-102, F-104)
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -1392,7 +1439,7 @@ test.describe('keyboard and motion', () => {
     // The header in DOM order = visual order (WCAG 2.4.3); below 640 px the panel stays closed during the walk.
     const expectedHeader = usesHeaderPanel(page)
       ? ["let's chat", 'change profile picture', 'menu']
-      : ["let's chat", 'change profile picture', 'find people', 'log out', ...MAIN_NAV_LINKS];
+      : ["let's chat", 'change profile picture', 'find people', ...MAIN_NAV_LINKS, 'log out'];
     expect(stops.filter((stop) => stop.inBanner).map((stop) => stop.name)).toEqual(expectedHeader);
 
     // The page content comes after the header and reaches the profile's own controls and the wall.
@@ -1434,6 +1481,9 @@ test.describe('keyboard and motion', () => {
       'sign up',
       'log in',
       'about',
+      // The footer (ADR-0015).
+      'about',
+      'github',
     ]);
 
     await expectAccessible(page);

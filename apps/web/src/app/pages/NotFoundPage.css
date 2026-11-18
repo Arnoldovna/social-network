@@ -1,10 +1,33 @@
 @reference "#styles/main.css";
 
 /*
- * Not-found page (F-04): the page shell with the wordmark, then a left-aligned empty-state composition
- * (maw-design-system §6 "Empty state"): a large sentence, one muted line, one text link. No illustration, no centring.
+ * Not-found page (F-04). `.not-found` is the content, a left-aligned empty-state composition (maw-design-system §6
+ * "Empty state"): a large sentence, one muted line, one text link; no illustration, no centring. Signed-in users see it
+ * inside the app layout. `.not-found-page` is the visitor's standalone shell around it: the page column with the
+ * wordmark and its own main landmark.
  */
 @layer components {
+  .not-found {
+    @apply flex flex-col items-start gap-4;
+  }
+
+  .not-found__title {
+    @apply m-0 text-title-l font-regular;
+  }
+
+  .not-found__text {
+    @apply m-0 mbe-4 text-body text-ink-muted max-inline-prose;
+  }
+
+  /*
+   * Underlined text link (maw button A); line and hover thickness come from the `a` defaults in base.css. At least
+   * 24px tall like the buttons, so the only action on the page is an easy target (WCAG 2.5.8). The arrow is its own
+   * flex item, so the gap (not a trailing space, which inline-flex drops) keeps it apart from the words.
+   */
+  .not-found__link {
+    @apply inline-flex items-center gap-2 min-block-6 text-body text-ink;
+  }
+
   .not-found-page {
     @apply flex flex-col mx-auto max-inline-page min-block-dvh;
   }
@@ -36,26 +59,10 @@
   }
 
   .not-found-page__main {
-    @apply flex flex-1 flex-col items-start gap-4 ps-3 pe-3 pbs-16 pbe-24;
+    @apply flex-1 ps-3 pe-3 pbs-16 pbe-24;
 
     @variant sm {
       @apply ps-5 pe-5 pbs-24;
     }
-  }
-
-  .not-found-page__title {
-    @apply m-0 text-title-l font-regular;
-  }
-
-  .not-found-page__text {
-    @apply m-0 mbe-4 text-body text-ink-muted max-inline-prose;
-  }
-
-  /*
-   * Underlined text link (maw button A); line and hover thickness come from the `a` defaults in base.css. At least
-   * 24px tall like the buttons, so the only action on the page is an easy target (WCAG 2.5.8).
-   */
-  .not-found-page__link {
-    @apply inline-flex items-center min-block-6 text-body text-ink;
   }
 }
