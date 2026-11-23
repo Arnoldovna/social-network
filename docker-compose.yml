@@ -37,7 +37,7 @@ x-api-env: &api-env
 
 services:
   postgres:
-    image: postgres:18-alpine@sha256:b6972e1115a4ff8eba5d7f7d19184926d1e16d7d1136ae1e1a7ebf286da0f015
+    image: postgres:19-alpine@sha256:8b0ff4cdf221f0c53d7fcda681d3b461be725c492cd881c5ec9c0ad25023f188
     environment:
       POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env (pnpm setup:env)}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env (pnpm setup:env)}
@@ -74,7 +74,7 @@ services:
   # MinIO stopped publishing community images in Oct 2025; Chainguard ships a free, maintained build. Only `latest`
   # is free, so the digest is the version.
   minio:
-    image: cgr.dev/chainguard/minio:latest@sha256:59953701f8f8d0de81aab456f0b0b6c0a1804119415559bf7ede79d944108879
+    image: cgr.dev/chainguard/minio:latest@sha256:548147b5fc95a67e3e45285dff7e0e50326c3eb1977c6218039461771156c5e7
     command: ['server', '/data', '--console-address', ':9001']
     environment:
       MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:?set S3_ACCESS_KEY_ID in .env (pnpm setup:env)}
@@ -93,7 +93,7 @@ services:
   # `up --wait` only accepts an exited one-shot that another started service depends on (seed and api, profile app),
   # so the infra-only path runs it with `docker compose run --rm minio-init` (pnpm infra:up).
   minio-init:
-    image: cgr.dev/chainguard/minio-client:latest@sha256:5eee28fde834bf5da476a6e0cfaf98dfe9625761bab9cd297ebb7125a261ba35
+    image: cgr.dev/chainguard/minio-client:latest@sha256:328ad584835c07ff4b28418aa54d9d9a83893b86bc543436c910359cca76ce19
     command: ['mb', '--ignore-existing', 'local/${S3_BUCKET}']
     environment:
       MC_HOST_local: http://${S3_ACCESS_KEY_ID}:${S3_SECRET_ACCESS_KEY}@minio:9000
